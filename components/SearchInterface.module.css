@@ -141,6 +141,17 @@
     border-radius: var(--radius-md);
   }
 
+  .tabBtn {
+    padding: 8px 6px;
+    gap: 4px;
+    font-size: 0.75rem;
+  }
+
+  .tabBtn svg {
+    width: 14px;
+    height: 14px;
+  }
+
   .input {
     padding: 14px;
     padding-right: 40px; /* make room for absolute clear button */
