@@ -32,13 +32,13 @@
 
 @media (max-width: 600px) {
   .clockContainer {
-    font-size: 0.6rem;
-    padding: 4px 8px;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0px;
+    font-size: 0.65rem;
+    padding: 6px 10px;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
   }
   .divider {
-    display: none;
+    display: inline;
   }
 }
