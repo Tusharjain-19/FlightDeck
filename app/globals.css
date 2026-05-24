@@ -126,6 +126,16 @@ button {
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .main-header {
+    justify-content: center;
+    flex-direction: column;
+    padding: 16px;
+  }
 }
 
 @media (min-width: 768px) {
@@ -166,22 +176,26 @@ button {
 /* =================== HERO =================== */
 .hero {
   text-align: center;
-  padding: 56px 24px 0;
+  padding: 32px 16px 0;
 }
 
 .hero h1 {
-  font-size: 2.25rem;
+  font-size: 2rem;
   margin-bottom: 8px;
 }
 
 .hero p {
   color: var(--text-secondary);
-  font-size: 1rem;
+  font-size: 0.95rem;
   max-width: 440px;
   margin: 0 auto;
 }
 
 @media (min-width: 768px) {
+  .hero {
+    padding: 56px 24px 0;
+  }
+
   .hero h1 {
     font-size: 3rem;
   }
