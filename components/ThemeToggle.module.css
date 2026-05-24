@@ -2,30 +2,28 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  color: var(--text-secondary);
-  background-color: var(--bg-card);
-  border: 1px solid var(--border);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  background-color: transparent;
+  border: none;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .toggleBtn:hover {
-  color: var(--text-primary);
-  border-color: var(--border-hover);
-  background-color: var(--accent-glow);
+  background-color: var(--bg-input);
 }
 
 @media (max-width: 600px) {
   .toggleBtn {
     width: 32px;
     height: 32px;
-    border-radius: var(--radius-sm);
   }
   
   .toggleBtn svg {
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
   }
 }
