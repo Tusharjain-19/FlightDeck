@@ -16,8 +16,6 @@
 # next.js
 /.next/
 /out/
-
-# production
 /build
 
 # misc
@@ -30,8 +28,23 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# ==============================================================================
+# 🔒 SECURITY: SENSITIVE FILES & API KEYS
+# ==============================================================================
+# Never commit environment variables, API keys, or secrets to version control!
+.env
+.env.*
+!.env.example
+*.key
+*.cert
+*.pem
+credentials.json
+client_secret.json
+secrets.json
+auth.json
+api_keys.txt
+config.json
+# ==============================================================================
 
 # vercel
 .vercel
@@ -39,3 +52,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo

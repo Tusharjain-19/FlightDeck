@@ -1,0 +1,44 @@
+.clockContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.date {
+  color: var(--text-muted);
+}
+
+.divider {
+  color: var(--border);
+}
+
+.time {
+  color: var(--accent);
+}
+
+.clockPlaceholder {
+  opacity: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .clockContainer {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+  }
+  .date {
+    display: none;
+  }
+  .divider {
+    display: none;
+  }
+}
