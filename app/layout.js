@@ -5,7 +5,7 @@ import LiveClock from '../components/LiveClock';
 import './globals.css';
 
 export const metadata = {
-  title: 'FlightDeck — Live Flight Tracker',
+  title: 'FlightDeck | Live Flight Tracker',
   description: 'Real-time flight tracking with SpaceX-style trajectory visualization',
 };
 
