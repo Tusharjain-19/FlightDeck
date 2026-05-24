@@ -15,12 +15,14 @@ export default function RootLayout({ children }) {
       <body suppressHydrationWarning>
         <ThemeProvider>
           <header className="main-header container">
+            <div className="header-left">
+              <LiveClock />
+            </div>
             <div className="logo-group">
-              <Image src="/logo.png" alt="FlightDeck Logo" width={36} height={36} style={{ borderRadius: '8px' }} />
+              <Image src="/logo.png" alt="FlightDeck Logo" width={32} height={32} style={{ borderRadius: '6px' }} />
               <span className="logo-text">FlightDeck<span className="logo-dot">.</span></span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <LiveClock />
+            <div className="header-right">
               <ThemeToggle />
             </div>
           </header>
