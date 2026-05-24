@@ -1,6 +1,16 @@
-# FlightDeck ✈️
+<div align="center">
+  <h1>FlightDeck ✈️</h1>
+  <p>A modern, responsive Flight Tracker application built with Next.js, React, and Tailwind CSS.</p>
+  
+  <p>
+    <img src="https://img.shields.io/badge/Next-black?style=for-the-badge&logo=next.js&logoColor=white" alt="Next JS" />
+    <img src="https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB" alt="React" />
+    <img src="https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="TailwindCSS" />
+    <img src="https://img.shields.io/badge/ESLint-4B3263?style=for-the-badge&logo=eslint&logoColor=white" alt="ESLint" />
+  </p>
+</div>
 
-A modern, responsive Flight Tracker application built with Next.js, React, and Tailwind CSS. Track real-time flight statuses, explore schedules, and monitor arrivals and departures with ease.
+---
 
 ## 🌟 Features
 
@@ -11,7 +21,7 @@ A modern, responsive Flight Tracker application built with Next.js, React, and T
 
 ## 🚀 Tech Stack
 
-- **Framework**: [Next.js](https://nextjs.org/) (App Router)
+- **Framework**: [Next.js](https://nextjs.org/)
 - **UI Library**: [React](https://reactjs.org/)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 - **Linting**: [ESLint](https://eslint.org/)
@@ -26,8 +36,8 @@ Ensure you have Node.js (v18+) and npm (or yarn/pnpm/bun) installed on your mach
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
-   cd "flighter tracker"
+   git clone https://github.com/Tusharjain-19/FlightDeck.git
+   cd FlightDeck
    ```
 
 2. Install dependencies:
@@ -51,6 +61,15 @@ Ensure you have Node.js (v18+) and npm (or yarn/pnpm/bun) installed on your mach
 
 - All API keys and sensitive credentials must be stored in `.env` files (e.g., `.env.local`).
 - The `.gitignore` is comprehensively configured to exclude sensitive files, certificates, and API key JSON/txt files from version control to prevent accidental leaks.
+
+## 👨‍💻 About Me
+
+Built by **Tushar Jain**
+
+🌐 **Website:** [www.tusharjain.in](http://www.tusharjain.in)  
+💼 **GitHub:** [@Tusharjain-19](https://github.com/Tusharjain-19)
+
+Feel free to reach out or connect with me through my website!
 
 ## 🤝 Contributing
 
