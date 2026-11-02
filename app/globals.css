@@ -1,68 +1,90 @@
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 :root {
-  /* Light Mode */
-  --bg-primary: #faf8ff;
+  /* Light Mode - Authentic Airline Palette */
+  --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
-  --bg-input: #f2f3ff;
-  --text-primary: #131b2e;
-  --text-secondary: #444651;
-  --text-muted: #757682;
-  --accent: #1e3a8a;
-  --accent-hover: #00236f;
-  --accent-glow: rgba(30, 58, 138, 0.12);
-  --border: #e2e7ff;
-  --border-hover: #1e3a8a;
+  --bg-input: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --accent: #1d4ed8;
+  --accent-hover: #1e40af;
+  --accent-glow: rgba(29, 78, 216, 0.12);
+  --border: #e2e8f0;
+  --border-hover: #cbd5e1;
   --success: #059669;
   --success-bg: rgba(5, 150, 105, 0.1);
   --warning: #d97706;
   --warning-bg: rgba(217, 119, 6, 0.1);
-  --error: #ba1a1a;
-  --error-bg: #ffdad6;
-  --active: #0058be;
-  --active-bg: rgba(0, 88, 190, 0.1);
-  --trajectory-bg: #ffffff;
-  --trajectory-line: rgba(19, 27, 46, 0.12);
-  --trajectory-text: #131b2e;
+  --error: #dc2626;
+  --error-bg: rgba(220, 38, 38, 0.1);
+  --active: #2563eb;
+  --active-bg: rgba(37, 99, 235, 0.1);
+  
+  /* Boarding Pass Specific Design Tokens */
+  --ticket-bg: #ffffff;
+  --ticket-stub-bg: #f8fafd;
+  --ticket-border: #cbd5e1;
+  --ticket-perforation: #94a3b8;
+  --ticket-header-bg: #1e3a8a;
+  --ticket-header-text: #ffffff;
+  --ticket-barcode: #0f172a;
 
-  /* Fonts */
-  --font-display: 'Hanken Grotesk', system-ui, sans-serif;
+  --trajectory-bg: #ffffff;
+  --trajectory-line: #cbd5e1;
+  --trajectory-text: #0f172a;
+
+  /* Typography */
+  --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Space Grotesk', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --font-data: 'JetBrains Mono', monospace;
 
   /* Radius */
-  --radius-sm: 0.25rem;
+  --radius-sm: 0.375rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
+  --radius-xl: 1.25rem;
   --radius-pill: 9999px;
 }
 
 [data-theme="dark"] {
-  --bg-primary: #080d18;
-  --bg-secondary: #131b2e;
-  --bg-card: #1b2b3f;
-  --bg-input: #283044;
-  --text-primary: #eef0ff;
-  --text-secondary: #9dadc6;
-  --text-muted: #757682;
-  --accent: #3b82f6;
-  --accent-hover: #60a5fa;
-  --accent-glow: rgba(59, 130, 246, 0.15);
-  --border: #314156;
-  --border-hover: #3b82f6;
-  --success: #34d399;
-  --success-bg: rgba(52, 211, 153, 0.1);
-  --warning: #fbbf24;
-  --warning-bg: rgba(251, 191, 36, 0.1);
-  --error: #f87171;
-  --error-bg: rgba(248, 113, 113, 0.1);
-  --active: #60a5fa;
-  --active-bg: rgba(96, 165, 250, 0.1);
-  --trajectory-bg: #131b2e;
-  --trajectory-line: rgba(255, 255, 255, 0.12);
-  --trajectory-text: #eef0ff;
+  /* Pure Pitch OLED Black Theme */
+  --bg-primary: #000000;
+  --bg-secondary: #050505;
+  --bg-card: #08080a;
+  --bg-input: #101014;
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent: #0ea5e9;
+  --accent-hover: #38bdf8;
+  --accent-glow: rgba(14, 165, 233, 0.22);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.22);
+  --success: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.14);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.14);
+  --error: #ef4444;
+  --error-bg: rgba(239, 68, 68, 0.14);
+  --active: #0ea5e9;
+  --active-bg: rgba(14, 165, 233, 0.14);
+
+  /* Boarding Pass Specific Dark Mode - Pure OLED Black Ticket */
+  --ticket-bg: #000000;
+  --ticket-stub-bg: #040405;
+  --ticket-border: rgba(255, 255, 255, 0.14);
+  --ticket-perforation: rgba(255, 255, 255, 0.2);
+  --ticket-header-bg: #05070c;
+  --ticket-header-text: #ffffff;
+  --ticket-barcode: #ffffff;
+
+  --trajectory-bg: #000000;
+  --trajectory-line: rgba(255, 255, 255, 0.15);
+  --trajectory-text: #ffffff;
 }
 
 * {
@@ -73,16 +95,28 @@
 
 html {
   scroll-behavior: smooth;
+  min-height: 100%;
 }
 
 body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-display);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.35s ease, color 0.35s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  padding-bottom: 96px;
+  overflow-x: hidden;
+}
+
+.main-content {
+  flex: 1 0 auto;
+  width: 100%;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -109,42 +143,175 @@ button {
 
 /* =================== LAYOUT =================== */
 .container {
-  max-width: 1100px;
+  width: 100%;
+  max-width: 1140px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 20px;
 }
 
 @media (min-width: 768px) {
   .container {
-    padding: 0 48px;
+    padding: 0 32px;
   }
 }
 
-/* =================== HEADER =================== */
+@media (min-width: 1200px) {
+  .container {
+    padding: 0 40px;
+  }
+}
+
+/* =================== GLASSMORPHIC HEADER =================== */
 .main-header {
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(248, 250, 252, 0.88);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+  transition: all 0.3s ease;
+}
+
+[data-theme="dark"] .main-header {
+  background: rgba(0, 0, 0, 0.88);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.header-inner {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
 }
 
 .logo-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  text-decoration: none;
 }
 
-.logo-icon {
-  color: var(--text-primary);
+.logo-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #0b152d;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);
+  transition: transform 0.2s ease;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.logo-group:hover .logo-badge {
+  transform: scale(1.05);
+}
+
+.brand-titles {
+  display: flex;
+  flex-direction: column;
 }
 
 .logo-text {
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  font-weight: 700;
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.brand-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+
+/* Desktop Navigation */
+.desktop-nav {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 4px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+}
+
+[data-theme="dark"] .desktop-nav {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+@media (min-width: 768px) {
+  .desktop-nav {
+    display: flex;
+  }
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="dark"] .nav-link:hover {
+  background: rgba(30, 41, 59, 0.8);
+}
+
+.nav-count {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: rgba(29, 78, 216, 0.12);
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 9999px;
+}
+
+/* =================== GLASSMORPHISM UTILITIES =================== */
+.glassCard {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.05);
+  border-radius: 18px;
+}
+
+[data-theme="dark"] .glassCard {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
 /* =================== HERO =================== */
@@ -167,14 +334,14 @@ button {
 
 @media (min-width: 768px) {
   .hero {
-    padding: 56px 24px 0;
+    padding: 48px 24px 0;
   }
 
   .hero h1 {
-    font-size: 3rem;
+    font-size: 2.8rem;
   }
 
   .hero p {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
   }
 }

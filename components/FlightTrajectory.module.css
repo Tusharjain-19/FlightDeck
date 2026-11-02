@@ -4,7 +4,27 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   margin-top: 16px;
-  transition: background-color 0.35s ease, border-color 0.35s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+:global([data-theme="dark"]) .trajectoryCard {
+  background-color: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+.trajectoryEmbedded {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  margin-top: 0 !important;
+  box-shadow: none !important;
+  width: 100%;
+}
+
+.trajectoryEmbedded .svgContainer {
+  padding: 0 !important;
 }
 
 /* Header */
@@ -16,6 +36,10 @@
   border-bottom: 1px solid var(--border);
 }
 
+:global([data-theme="dark"]) .header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .headerLeft {
   display: flex;
   align-items: center;
@@ -23,19 +47,32 @@
   gap: 12px;
 }
 
+.airlineLogoBox {
+  display: flex;
+  align-items: center;
+}
+
+.airlineLogoImg {
+  border-radius: 6px;
+  object-fit: contain;
+  height: auto;
+}
+
 .flightBadge {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   font-weight: 700;
   color: #ffffff;
-  background: rgba(59, 130, 246, 0.85);
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
   padding: 4px 10px;
   border-radius: var(--radius-sm);
   letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
 }
 
 .airline {
-  font-size: 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-secondary);
 }
 
@@ -51,21 +88,23 @@
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  padding: 4px 12px;
+  padding: 5px 12px;
   border-radius: var(--radius-pill);
   background: var(--bg-input);
   color: var(--text-muted);
 }
 
 .status_landed {
-  background: rgba(5, 150, 105, 0.12) !important;
+  background: rgba(16, 185, 129, 0.14) !important;
   color: var(--success) !important;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .status_active,
 .status_enroute {
-  background: rgba(37, 99, 235, 0.12) !important;
+  background: rgba(14, 165, 233, 0.14) !important;
   color: var(--accent) !important;
+  border: 1px solid rgba(14, 165, 233, 0.3);
 }
 
 .status_scheduled {
@@ -74,17 +113,16 @@
 }
 
 .status_cancelled {
-  background: rgba(220, 38, 38, 0.12) !important;
+  background: rgba(239, 68, 68, 0.14) !important;
   color: var(--error) !important;
 }
 
-/* Telemetry */
+/* Telemetry Gauges */
 .telemetry {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 0 24px;
-  padding-top: 16px;
+  padding: 16px 24px 0;
 }
 
 .regBadge {
@@ -102,11 +140,17 @@
 .gauge {
   display: flex;
   align-items: baseline;
-  gap: 4px;
+  gap: 5px;
   background: var(--bg-input);
   padding: 8px 16px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+:global([data-theme="dark"]) .gauge {
+  background: #08080c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .gaugeValue {
@@ -119,7 +163,7 @@
 
 .gaugeLabel {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   color: var(--text-muted);
   letter-spacing: 0.05em;
   margin-right: 8px;
@@ -127,21 +171,104 @@
 
 .gaugeTitle {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
-  font-weight: 600;
+  font-size: 0.62rem;
+  font-weight: 700;
   color: var(--text-secondary);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
-/* SVG */
+/* SVG Trajectory */
 .svgContainer {
-  padding: 8px 0 0;
-  overflow: hidden;
+  padding: 12px 0 0;
+  overflow: visible;
+  position: relative;
+  cursor: crosshair;
+  user-select: none;
 }
 
 .svg {
   display: block;
+  overflow: visible;
+}
+
+/* Altitude Area Wash */
+.altitudeArea {
+  pointer-events: none;
+  animation: fadeInArea 0.8s ease-out;
+}
+
+@keyframes fadeInArea {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Animated Completed Arc */
+.completedArc {
+  filter: drop-shadow(0 0 6px rgba(14, 165, 233, 0.6));
+}
+
+/* Milestone Group */
+.milestoneGroup {
+  transition: opacity 0.2s ease;
+}
+
+.activeBeaconDot {
+  filter: drop-shadow(0 0 8px #0ea5e9);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.waypointLabel {
+  transition: fill 0.2s ease;
+}
+
+/* Speed Tag above Aircraft */
+.speedHudTag {
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+}
+
+.hudBadgeBg {
+  backdrop-filter: blur(8px);
+}
+
+/* Airplane Animation & Levitation */
+.airplaneContainer {
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+  transition: transform 0.2s ease-out;
+  animation: levitate 3s infinite ease-in-out;
+}
+
+@keyframes levitate {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(0, -2px); }
+  100% { transform: translate(0, 0); }
+}
+
+.engineFlare {
+  animation: enginePulse 1.2s infinite alternate ease-in-out;
+  transform-origin: center;
+}
+
+@keyframes enginePulse {
+  0% { opacity: 0.5; rx: 4px; }
+  100% { opacity: 0.95; rx: 7px; }
+}
+
+.planeGlowPulse {
+  animation: pulseRadarRing 2.4s infinite ease-in-out;
+}
+
+@keyframes pulseRadarRing {
+  0% { r: 14px; opacity: 0.2; }
+  50% { r: 24px; opacity: 0.5; }
+  100% { r: 14px; opacity: 0.2; }
 }
 
 /* Timer Bar */
@@ -149,8 +276,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 24px 16px;
+  padding: 16px 24px;
   border-top: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+:global([data-theme="dark"]) .timerBar {
+  background: #000000;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .timerSection {
@@ -161,137 +294,59 @@
 
 .timerLabel {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
-  font-weight: 600;
+  font-size: 0.62rem;
+  font-weight: 700;
   color: var(--text-muted);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
 }
 
 .timerValue {
   font-family: var(--font-data);
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: 1.25rem;
+  font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.01em;
 }
 
 .progressInfo {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.progressBadge {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .progressPercent {
   font-family: var(--font-data);
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: #3b82f6;
-  letter-spacing: -0.02em;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.03em;
 }
 
-/* Responsive */
-@media (max-width: 600px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 16px;
-  }
-
-  .telemetry {
-    padding: 16px 16px 0;
-    gap: 8px;
-  }
-
-  .gauge {
-    flex: 1 1 calc(50% - 8px);
-    padding: 10px 12px;
-    flex-wrap: wrap;
-  }
-
-  .timerBar {
-    padding: 16px;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-
-  .gaugeValue {
-    font-size: 1.25rem;
-  }
-
-  .progressPercent {
-    font-size: 1.2rem;
-  }
-
-  .timerValue {
-    font-size: 0.95rem;
-  }
-}
-
-/* Live indicator */
-.liveIndicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  margin-left: 8px;
-}
-
-.liveDot {
-  width: 6px;
-  height: 6px;
-  background-color: #ef4444;
-  border-radius: 50%;
-  box-shadow: 0 0 8px #ef4444;
-  animation: blinkLive 1.2s infinite ease-in-out;
-}
-
-.liveText {
+.progressSubLabel {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  color: #f87171;
-  letter-spacing: 0.05em;
-}
-
-@keyframes blinkLive {
-  0% { opacity: 0.3; }
-  50% { opacity: 1; }
-  100% { opacity: 0.3; }
-}
-
-/* Plane Glow Pulse */
-.glowPulse {
-  transform-origin: center;
-  animation: pulseGlow 1.8s infinite ease-in-out;
-}
-
-@keyframes pulseGlow {
-  0% { r: 16px; opacity: 0.15; }
-  50% { r: 24px; opacity: 0.45; }
-  100% { r: 16px; opacity: 0.15; }
-}
-
-.timerDate {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 500;
   color: var(--text-muted);
-  margin-top: 1px;
+  letter-spacing: 0.08em;
 }
 
-.delayPill {
+.flightPhaseTag {
   font-family: var(--font-mono);
   font-size: 0.65rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  padding: 4px 10px;
+  color: #38bdf8;
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  padding: 2px 8px;
   border-radius: var(--radius-pill);
-  background: rgba(217, 119, 6, 0.12);
-  color: var(--warning);
-  border: 1px solid rgba(217, 119, 6, 0.25);
-  margin-right: 8px;
+  letter-spacing: 0.06em;
 }
 
 /* Facility Bar (Terminals, Gates, Belts) */
@@ -299,9 +354,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 24px 14px;
+  padding: 10px 24px 14px;
   background-color: var(--bg-input);
   border-top: 1px dashed var(--border);
+}
+
+:global([data-theme="dark"]) .facilityBar {
+  background: #050508;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
 .facilitySection {
@@ -312,18 +372,100 @@
 
 .facilityItem {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 700;
   color: var(--text-secondary);
-  background-color: var(--bg-primary);
+  background-color: var(--bg-card);
   border: 1px solid var(--border);
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: var(--radius-sm);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+}
+
+:global([data-theme="dark"]) .facilityItem {
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+}
+
+/* Live indicator */
+.liveIndicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.liveDot {
+  width: 7px;
+  height: 7px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #ef4444;
+  animation: blinkLive 1.2s infinite ease-in-out;
+}
+
+.liveText {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #f87171;
+  letter-spacing: 0.06em;
+}
+
+@keyframes blinkLive {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+.timerDate {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.delayPill {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(217, 119, 6, 0.14);
+  color: var(--warning);
+  border: 1px solid rgba(217, 119, 6, 0.3);
 }
 
 @media (max-width: 600px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .telemetry {
+    padding: 12px 14px 0;
+    gap: 8px;
+  }
+
+  .gauge {
+    flex: 1 1 calc(50% - 8px);
+    padding: 8px 12px;
+  }
+
+  .timerBar {
+    padding: 14px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
   .facilityBar {
-    padding: 8px 16px 12px;
+    padding: 10px 14px;
   }
 }

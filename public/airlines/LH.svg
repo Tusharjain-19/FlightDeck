@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none">
+  <!-- Lufthansa Vector Logo -->
+  <circle cx="24" cy="24" r="18" stroke="#05164D" stroke-width="3" fill="#FFC600"/>
+  <path d="M12 28 C18 20, 28 16, 34 18 C28 22, 22 28, 16 31" fill="#05164D"/>
+  <text x="50" y="31" font-family="'Helvetica Neue', 'Inter', sans-serif" font-weight="700" font-size="20" fill="#05164D" letter-spacing="0.5">Lufthansa</text>
+</svg>

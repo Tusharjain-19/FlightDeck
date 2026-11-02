@@ -89,8 +89,11 @@ export async function GET(request) {
   const clientDate = searchParams.get('date'); // 'YYYY-MM-DD'
   const clientNowParam = searchParams.get('clientNow');
 
-  if (!type || !query) {
-    return NextResponse.json({ error: 'Missing type or query parameter' }, { status: 400 });
+  const dep = searchParams.get('dep');
+  const arr = searchParams.get('arr');
+
+  if (!type || (type === 'route' ? (!dep || !arr) : !query)) {
+    return NextResponse.json({ error: 'Missing type, query or route parameters' }, { status: 400 });
   }
 
   const apiKey = process.env.AIRLABS_API_KEY;
@@ -166,7 +169,25 @@ export async function GET(request) {
   try {
     let flightsList = [];
 
-    if (type === 'airport') {
+    if (type === 'route') {
+      const dep = searchParams.get('dep') || query;
+      const arr = searchParams.get('arr');
+      
+      const [response, liveRes] = await Promise.all([
+        fetch(`https://airlabs.co/api/v9/schedules?dep_iata=${dep}&arr_iata=${arr}&api_key=${apiKey}`, { cache: 'no-store' })
+          .then(res => res.json())
+          .catch(() => ({ response: [] })),
+        fetch(`https://airlabs.co/api/v9/flights?dep_iata=${dep}&arr_iata=${arr}&api_key=${apiKey}`, { cache: 'no-store' })
+          .then(res => res.json())
+          .catch(() => ({ response: [] }))
+      ]);
+
+      const liveMap = {};
+      (liveRes.response || []).forEach(f => { if (f.flight_iata) liveMap[f.flight_iata] = f; });
+
+      const raw = (response.response || []).filter(f => !f.cs_flight_iata);
+      flightsList = raw.map(f => mapAirLabs({ ...f, search_type: 'departure' }, liveMap[f.flight_iata]));
+    } else if (type === 'airport') {
       const [depResponse, arrResponse, depLiveRes, arrLiveRes] = await Promise.all([
         fetch(`https://airlabs.co/api/v9/schedules?dep_iata=${query}&api_key=${apiKey}`, { cache: 'no-store' })
           .then(res => res.json())
@@ -200,27 +221,97 @@ export async function GET(request) {
       const arrivals = arrRaw.map(f => mapAirLabs({ ...f, search_type: 'arrival' }, liveMap[f.flight_iata]));
       flightsList = [...departures, ...arrivals];
     } else if (type === 'flight') {
-      const [response, liveRes] = await Promise.all([
+      const cleanCallsign = query.replace(/\s+/g, '').toUpperCase();
+      
+      const [response, liveRes, adsbRes] = await Promise.all([
         fetch(`https://airlabs.co/api/v9/schedules?flight_iata=${query}&api_key=${apiKey}`, { cache: 'no-store' })
           .then(res => res.json())
           .catch(() => ({ response: [] })),
         fetch(`https://airlabs.co/api/v9/flights?flight_iata=${query}&api_key=${apiKey}`, { cache: 'no-store' })
           .then(res => res.json())
-          .catch(() => ({ response: [] }))
+          .catch(() => ({ response: [] })),
+        fetch(`${process.env.ADSBLOL_API_URL || 'https://api.adsb.lol/v2'}/callsign/${cleanCallsign}`, {
+          headers: { 'User-Agent': 'FlightDeck/1.0' },
+          cache: 'no-store'
+        })
+          .then(res => res.json())
+          .catch(() => ({ ac: [] }))
       ]);
       const data = response;
 
-      if (data.error) {
+      const liveMap = {};
+      (liveRes.response || []).forEach(f => { if (f.flight_iata) liveMap[f.flight_iata] = f; });
+
+      // If adsb.lol has live transponder data, enhance or populate
+      const adsbAc = (adsbRes.ac || []).find(a => a.lat && a.lon);
+
+      if (data.response && data.response.length > 0) {
+        flightsList = data.response.map(f => {
+          let mapped = mapAirLabs(f, liveMap[f.flight_iata]);
+          if (adsbAc && !mapped.live) {
+            mapped.live = {
+              speed_horizontal: adsbAc.gs ? Math.round(adsbAc.gs * 1.852) : null,
+              altitude: adsbAc.alt_baro ? Math.round(adsbAc.alt_baro * 0.3048) : null,
+              direction: adsbAc.track,
+              v_speed: adsbAc.baro_rate ? Math.round(adsbAc.baro_rate * 0.00508) : null,
+              squawk: adsbAc.squawk || adsbAc.hex,
+              registration: adsbAc.r,
+              aircraft_type: adsbAc.t,
+              lat: adsbAc.lat,
+              lon: adsbAc.lon,
+              source: 'adsb.lol'
+            };
+            mapped.flight_status = 'active';
+          }
+          return mapped;
+        });
+      } else if (adsbAc) {
+        // Fallback directly from live ADS-B when schedule API has no record or error!
+        flightsList = [{
+          flight_date: new Date().toISOString().split('T')[0],
+          flight_status: 'active',
+          departure: {
+            airport: 'DEP',
+            iata: 'DEP',
+            scheduled: new Date().toISOString()
+          },
+          arrival: {
+            airport: 'ARR',
+            iata: 'ARR',
+            scheduled: new Date(Date.now() + 2 * 3600 * 1000).toISOString()
+          },
+          airline: {
+            name: query.slice(0, 2),
+            iata: query.slice(0, 2)
+          },
+          flight: {
+            number: query,
+            iata: query
+          },
+          aircraft: {
+            registration: adsbAc.r,
+            icao: adsbAc.t,
+            icao24: adsbAc.hex
+          },
+          live: {
+            speed_horizontal: adsbAc.gs ? Math.round(adsbAc.gs * 1.852) : null,
+            altitude: adsbAc.alt_baro ? Math.round(adsbAc.alt_baro * 0.3048) : null,
+            direction: adsbAc.track,
+            v_speed: adsbAc.baro_rate ? Math.round(adsbAc.baro_rate * 0.00508) : null,
+            squawk: adsbAc.squawk || adsbAc.hex,
+            registration: adsbAc.r,
+            aircraft_type: adsbAc.t,
+            lat: adsbAc.lat,
+            lon: adsbAc.lon,
+            source: 'adsb.lol'
+          }
+        }];
+      } else if (data.error) {
         return NextResponse.json(
           { error: data.error.message || 'AirLabs API error' },
           { status: 400 }
         );
       }
-      
-      const liveMap = {};
-      (liveRes.response || []).forEach(f => { if (f.flight_iata) liveMap[f.flight_iata] = f; });
-
-      flightsList = (data.response || []).map(f => mapAirLabs(f, liveMap[f.flight_iata]));
     }
 
     if (flightsList.length === 0) {

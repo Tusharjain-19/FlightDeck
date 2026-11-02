@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
+import Image from 'next/image';
+import { getAirlineInfo } from './airlineData';
+import { useSettings } from '../lib/settingsContext';
 import styles from './FlightTrajectory.module.css';
 
 const iataTimezoneMap = {
@@ -106,10 +109,10 @@ function formatLocalTime(dateStr) {
 }
 
 function calculateProgress(departure, arrival, status, live) {
-  if (!status) return 0;
+  if (!status) return 0.05;
   const s = status.toLowerCase();
-  if (s === 'landed' || s === 'arrived') return 1;
-  if (s === 'scheduled' || s === 'cancelled') return 0;
+  if (s === 'landed' || s === 'arrived') return 1.0;
+  if (s === 'scheduled' || s === 'cancelled') return 0.0;
 
   const altitude = live?.altitude ? Math.round(live.altitude) : null;
   const isEnRoute = s === 'active' || s === 'en-route';
@@ -117,13 +120,13 @@ function calculateProgress(departure, arrival, status, live) {
   if (!departure?.scheduled || !arrival?.scheduled) {
     if (isEnRoute) {
       if (altitude) {
-        if (altitude > 9000) return 0.5;
+        if (altitude > 9000) return 0.55;
         if (altitude > 6000) return 0.35;
         if (altitude > 3000) return 0.2;
       }
       return 0.5;
     }
-    return 0;
+    return 0.05;
   }
 
   const depTz = resolveTimezone(departure.iata, departure.timezone);
@@ -132,20 +135,17 @@ function calculateProgress(departure, arrival, status, live) {
   const arrTime = getUtcTimeFromLocal(arrival.estimated || arrival.scheduled, arrTz);
   const now = Date.now();
 
-  // If flight is active but departure scheduled time is in the future relative to now,
-  // we have a date/timezone/clock mismatch. Fallback to altitude-based progress.
   if (isEnRoute && now <= depTime) {
     if (altitude) {
-      if (altitude > 9000) return 0.5;
+      if (altitude > 9000) return 0.55;
       if (altitude > 6000) return 0.35;
       if (altitude > 3000) return 0.2;
     }
-    return 0.15; // default takeoff progress
+    return 0.15;
   }
 
-  // If flight is active but arrival scheduled time is in the past, show final approach
   if (isEnRoute && now >= arrTime) {
-    return 0.95;
+    return 0.96;
   }
 
   let p = (now - depTime) / (arrTime - depTime);
@@ -153,7 +153,7 @@ function calculateProgress(departure, arrival, status, live) {
     p = 0.5;
   }
 
-  return 0.1 + 0.85 * p;
+  return Math.min(0.98, Math.max(0.08, 0.08 + 0.88 * p));
 }
 
 function formatDate(dateStr) {
@@ -162,156 +162,250 @@ function formatDate(dateStr) {
   return d.toLocaleDateString([], { day: '2-digit', month: 'short' });
 }
 
-
-function getPointOnArc(t, width, height, padding) {
+/**
+ * Realistic Aeronautical Flight Curve Generator
+ * Models smooth takeoff ascent, sustained high-altitude cruise dome, and steady glide-slope descent
+ */
+function getPointOnArc(t, width, height, padding, embedded = false) {
   const startX = padding;
   const endX = width - padding;
-  const x = startX + (endX - startX) * t;
+  const clampedT = Math.max(0, Math.min(1, t));
+  const x = startX + (endX - startX) * clampedT;
 
-  // Parabolic curve: peaks at t=0.5
-  const peakHeight = height * 0.55;
-  const baseY = height * 0.72;
-  const y = baseY - (4 * peakHeight * t * (1 - t));
+  // Realistic aerodynamic altitude curve: climbs fast, stays high in cruise, glides down
+  // Smooth sine exponent curve
+  const peakHeight = embedded ? height * 0.44 : height * 0.60;
+  const baseY = embedded ? height * 0.76 : height * 0.74;
+  
+  // Aeronautical altitude profile: climbs rapidly up to FL360, gentle flat cruise dome, steady descent
+  const curveFactor = Math.pow(Math.sin(Math.PI * clampedT), 0.72);
+  const y = baseY - (peakHeight * curveFactor);
 
   return { x, y };
 }
 
-function getMilestones(status) {
-  const milestones = [
-    { id: 'gate', label: 'GATE', t: 0 },
-    { id: 'takeoff', label: 'TAKEOFF', t: 0.1 },
-    { id: 'climb', label: 'CLIMB', t: 0.25 },
-    { id: 'cruise', label: 'CRUISE', t: 0.5 },
-    { id: 'descent', label: 'DESCENT', t: 0.75 },
-    { id: 'approach', label: 'APPROACH', t: 0.9 },
-    { id: 'landed', label: 'LANDED', t: 1.0 },
-  ];
+function getMilestones(status, embedded = false, width = 800) {
+  if (embedded) {
+    if (width < 420) {
+      return [
+        { id: 'gate', label: 'GATE', t: 0, alt: '0 FT' },
+        { id: 'cruise', label: 'CRUISE', t: 0.5, alt: '36,000 FT' },
+        { id: 'landed', label: 'LANDED', t: 1.0, alt: '0 FT' },
+      ];
+    }
+    return [
+      { id: 'gate', label: 'GATE', t: 0, alt: '0 FT' },
+      { id: 'climb', label: 'CLIMB', t: 0.22, alt: '18,000 FT' },
+      { id: 'cruise', label: 'CRUISE', t: 0.5, alt: '36,000 FT' },
+      { id: 'descent', label: 'DESCENT', t: 0.78, alt: '16,000 FT' },
+      { id: 'landed', label: 'LANDED', t: 1.0, alt: '0 FT' },
+    ];
+  }
 
-  return milestones;
+  return [
+    { id: 'gate', label: 'GATE', t: 0, alt: '0 FT' },
+    { id: 'taxi', label: 'TAXI', t: 0.08, alt: 'Ground' },
+    { id: 'climb', label: 'CLIMB', t: 0.24, alt: '18,000 FT' },
+    { id: 'cruise', label: 'CRUISE', t: 0.5, alt: '36,000 FT' },
+    { id: 'descent', label: 'DESCENT', t: 0.76, alt: '18,000 FT' },
+    { id: 'approach', label: 'APPROACH', t: 0.90, alt: '3,200 FT' },
+    { id: 'landed', label: 'LANDED', t: 1.0, alt: '0 FT' },
+  ];
 }
 
 function shortenAirportName(name) {
   if (!name) return 'N/A';
-  // Remove words like "International", "Airport", "Hub", etc.
   let clean = name
     .replace(/\b(International|Airport|Field|Regional|Municipal|Helipart|Intercontinental|Spacial|ICAO|IATA)\b/gi, '')
     .trim();
-  // Limit length
   if (clean.length > 18) {
     clean = clean.substring(0, 16) + '...';
   }
   return clean || name;
 }
 
-export default function FlightTrajectory({ flight }) {
+export default function FlightTrajectory({ flight, embedded = false }) {
+  const { convertSpeed, convertAltitude } = useSettings();
   const svgRef = useRef(null);
   const completedPathRef = useRef(null);
-  const [dims, setDims] = useState({ width: 800, height: 280 });
+  const [dims, setDims] = useState({ width: 800, height: embedded ? 92 : 280 });
+  
+  // Interactive Hover / Scrub state
+  const [hoverT, setHoverT] = useState(null);
+  const [isScrubbing, setIsScrubbing] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
       if (svgRef.current) {
         const rect = svgRef.current.parentElement.getBoundingClientRect();
-        // Set minimum height to 190 to avoid cutting off labels on mobile
-        setDims({ width: rect.width, height: Math.max(190, Math.min(280, rect.width * 0.42)) });
+        const w = Math.max(240, Math.round(rect.width));
+        // Compact height for embedded mode: sleek ~82px - 98px
+        const h = embedded
+          ? Math.max(80, Math.min(100, Math.round(w * 0.16)))
+          : Math.max(200, Math.min(290, Math.round(w * 0.42)));
+        setDims({ width: w, height: h });
       }
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [embedded]);
 
-  const progress = calculateProgress(flight.departure, flight.arrival, flight.flight_status, flight.live);
+  const realProgress = calculateProgress(flight.departure, flight.arrival, flight.flight_status, flight.live);
+  const activeT = hoverT !== null ? hoverT : realProgress;
+
   const { width, height } = dims;
-  const padding = 60;
-  const milestones = getMilestones(flight.flight_status);
+  const padding = embedded ? (width < 450 ? 22 : 36) : 60;
+  const milestones = getMilestones(flight.flight_status, embedded, width);
+  const baseY = embedded ? height * 0.76 : height * 0.74;
 
   // Completed arc drawing animation
   useEffect(() => {
     const path = completedPathRef.current;
     if (path) {
       const length = path.getTotalLength();
-      path.style.strokeDasharray = length;
+      path.style.strokeDasharray = `${length} ${length}`;
       path.style.strokeDashoffset = length;
       path.getBoundingClientRect(); // force reflow
-      path.style.transition = 'stroke-dashoffset 2s cubic-bezier(0.16, 1, 0.3, 1)';
+      path.style.transition = 'stroke-dashoffset 1.8s cubic-bezier(0.16, 1, 0.3, 1)';
       path.style.strokeDashoffset = '0';
     }
-  }, [progress, width]);
+  }, [realProgress, width]);
 
-  // Build arc path
-  const arcPoints = [];
-  for (let i = 0; i <= 100; i++) {
-    const t = i / 100;
-    const pt = getPointOnArc(t, width, height, padding);
-    arcPoints.push(`${pt.x},${pt.y}`);
-  }
+  // Build full arc path
+  const arcPoints = useMemo(() => {
+    const pts = [];
+    const steps = 120;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const pt = getPointOnArc(t, width, height, padding, embedded);
+      pts.push(`${pt.x.toFixed(1)},${pt.y.toFixed(1)}`);
+    }
+    return pts;
+  }, [width, height, padding, embedded]);
+
   const arcPath = `M ${arcPoints.join(' L ')}`;
 
   // Completed arc (up to progress)
-  const completedPoints = [];
-  const steps = Math.floor(progress * 100);
-  for (let i = 0; i <= steps; i++) {
-    const t = i / 100;
-    const pt = getPointOnArc(t, width, height, padding);
-    completedPoints.push(`${pt.x},${pt.y}`);
-  }
+  const completedPoints = useMemo(() => {
+    const pts = [];
+    const steps = Math.floor(activeT * 120);
+    for (let i = 0; i <= steps; i++) {
+      const t = i / 120;
+      const pt = getPointOnArc(t, width, height, padding, embedded);
+      pts.push(`${pt.x.toFixed(1)},${pt.y.toFixed(1)}`);
+    }
+    // Add exact progress point at end
+    const endPt = getPointOnArc(activeT, width, height, padding, embedded);
+    pts.push(`${endPt.x.toFixed(1)},${endPt.y.toFixed(1)}`);
+    return pts;
+  }, [activeT, width, height, padding, embedded]);
+
   const completedPath = completedPoints.length > 1 ? `M ${completedPoints.join(' L ')}` : '';
 
-  // Plane position
-  const planePos = getPointOnArc(progress, width, height, padding);
+  // Area under curve fill path
+  const startPt = getPointOnArc(0, width, height, padding, embedded);
+  const currentPt = getPointOnArc(activeT, width, height, padding, embedded);
+  const areaPath = completedPoints.length > 1
+    ? `M ${startPt.x.toFixed(1)},${baseY} L ${completedPoints.join(' L ')} L ${currentPt.x.toFixed(1)},${baseY} Z`
+    : '';
 
-  // Plane rotation (+90 degrees offset since default SVG plane shape points UP)
-  const prevPos = getPointOnArc(Math.max(0, progress - 0.02), width, height, padding);
-  const nextPos = getPointOnArc(Math.min(1, progress + 0.02), width, height, padding);
+  // Plane position & tangent rotation
+  const planePos = getPointOnArc(activeT, width, height, padding, embedded);
+  const prevPos = getPointOnArc(Math.max(0, activeT - 0.015), width, height, padding, embedded);
+  const nextPos = getPointOnArc(Math.min(1, activeT + 0.015), width, height, padding, embedded);
   const angle = Math.atan2(nextPos.y - prevPos.y, nextPos.x - prevPos.x) * (180 / Math.PI) + 90;
 
   const depIata = flight.departure?.iata || '---';
   const arrIata = flight.arrival?.iata || '---';
-  const statusText = flight.flight_status || 'unknown';
+  const statusText = flight.flight_status || 'scheduled';
   const flightIata = flight.flight?.iata || flight.flight?.icao || 'N/A';
 
   // Advanced Telemetry (Converted to Aviation Standard Units)
   const isLive = flight.live !== null && flight.live !== undefined;
-  const speedKts = flight.live?.speed_horizontal ? Math.round(flight.live.speed_horizontal * 0.539957) : null;
-  const altitudeFt = flight.live?.altitude ? Math.round(flight.live.altitude * 3.28084) : null;
+  const rawSpeedKts = flight.live?.speed_horizontal ? Math.round(flight.live.speed_horizontal * 0.539957) : 465;
+  const rawAltFt = flight.live?.altitude ? Math.round(flight.live.altitude * 3.28084) : Math.round(36000 * Math.pow(Math.sin(Math.PI * activeT), 0.75));
   const heading = flight.live?.direction !== undefined ? Math.round(flight.live.direction) : null;
   const vSpeedFpm = flight.live?.v_speed !== undefined ? Math.round(flight.live.v_speed * 196.85) : null;
 
+  const speedKts = isLive ? rawSpeedKts : (activeT > 0.1 && activeT < 0.95 ? 465 : null);
+  const altitudeFt = isLive ? rawAltFt : (activeT > 0.05 && activeT < 0.98 ? rawAltFt : null);
+
   const delayVal = flight.departure?.delay || flight.arrival?.delay || 0;
-  const baseY = height * 0.72;
+  const airlineInfo = getAirlineInfo(flight.airline?.iata || flight.flight?.iata || flight.flight?.icao);
+
+  // Mouse / Touch scrub handlers
+  const handlePointerMove = (e) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const relativeX = clientX - rect.left;
+    const rawT = (relativeX - padding) / (width - 2 * padding);
+    const clampedT = Math.max(0, Math.min(1, rawT));
+    setHoverT(clampedT);
+  };
+
+  const handlePointerLeave = () => {
+    setHoverT(null);
+    setIsScrubbing(false);
+  };
+
+  // Active milestone finder
+  let currentMilestone = milestones[0];
+  for (let m of milestones) {
+    if (activeT >= m.t - 0.08) {
+      currentMilestone = m;
+    }
+  }
 
   return (
-    <div className={styles.trajectoryCard}>
-      {/* Header bar */}
-      <div className={styles.header}>
-        <div className={styles.headerLeft}>
-          <span className={styles.flightBadge}>{flightIata}</span>
-          {flight.live?.registration && (
-            <span className={styles.regBadge}>{flight.live.registration}</span>
-          )}
-          <span className={styles.airline}>{flight.airline?.name || ''}</span>
-          {isLive && (
-            <div className={styles.liveIndicator}>
-              <span className={styles.liveDot}></span>
-              <span className={styles.liveText}>LIVE</span>
-            </div>
-          )}
-        </div>
-        <div className={styles.headerRight}>
-          {delayVal > 0 && (
-            <span className={styles.delayPill}>
-              +{delayVal}M DELAY
+    <div 
+      className={`${styles.trajectoryCard} ${embedded ? styles.trajectoryEmbedded : ''}`}
+      onPointerLeave={handlePointerLeave}
+    >
+      {/* Header bar (Standalone Mode) */}
+      {!embedded && (
+        <div className={styles.header}>
+          <div className={styles.headerLeft}>
+            {airlineInfo?.logo ? (
+              <div className={styles.airlineLogoBox} title={airlineInfo.name}>
+                <Image
+                  src={airlineInfo.logo}
+                  alt={airlineInfo.name}
+                  width={110}
+                  height={32}
+                  className={styles.airlineLogoImg}
+                />
+              </div>
+            ) : (
+              <span className={styles.airline}>{flight.airline?.name || ''}</span>
+            )}
+            <span className={styles.flightBadge}>{flightIata}</span>
+            {flight.live?.registration && (
+              <span className={styles.regBadge}>{flight.live.registration}</span>
+            )}
+            {isLive && (
+              <div className={styles.liveIndicator}>
+                <span className={styles.liveDot}></span>
+                <span className={styles.liveText}>ADS-B LIVE</span>
+              </div>
+            )}
+          </div>
+          <div className={styles.headerRight}>
+            {delayVal > 0 && (
+              <span className={styles.delayPill}>
+                +{delayVal}M DELAY
+              </span>
+            )}
+            <span className={`${styles.statusPill} ${styles[`status_${statusText.replace(/[^a-z]/g, '')}`] || ''}`}>
+              {statusText.toUpperCase()}
             </span>
-          )}
-          <span className={`${styles.statusPill} ${styles[`status_${statusText.replace(/[^a-z]/g, '')}`] || ''}`}>
-            {statusText.toUpperCase()}
-          </span>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Telemetry gauges */}
-      {isLive && (
+      {/* Telemetry gauges (Standalone Mode) */}
+      {!embedded && isLive && (
         <div className={styles.telemetry}>
           {speedKts !== null && (
             <div className={styles.gauge}>
@@ -330,7 +424,7 @@ export default function FlightTrajectory({ flight }) {
           {heading !== null && (
             <div className={styles.gauge}>
               <div className={styles.gaugeValue}>
-                {heading}° <span style={{display: 'inline-block', transform: `rotate(${heading}deg)`, marginLeft: '4px'}}>↑</span>
+                {heading}° <span style={{ display: 'inline-block', transform: `rotate(${heading}deg)`, marginLeft: '4px' }}>↑</span>
               </div>
               <div className={styles.gaugeLabel}>HDG</div>
               <div className={styles.gaugeTitle}>HEADING</div>
@@ -355,93 +449,164 @@ export default function FlightTrajectory({ flight }) {
         </div>
       )}
 
-      {/* SVG Trajectory */}
-      <div className={styles.svgContainer} ref={svgRef}>
+      {/* Interactive SVG Trajectory Area */}
+      <div 
+        className={styles.svgContainer} 
+        ref={svgRef}
+        onPointerMove={handlePointerMove}
+        onPointerDown={() => setIsScrubbing(true)}
+        onPointerUp={() => setIsScrubbing(false)}
+        role="region"
+        aria-label="Flight trajectory arc animation"
+      >
         <svg
           viewBox={`0 0 ${width} ${height}`}
           width="100%"
           height={height}
           className={styles.svg}
         >
-          {/* Ground line */}
+          <defs>
+            {/* Smooth glowing laser trail for flight path */}
+            <filter id="laserGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation={embedded ? "1.5" : "2.5"} result="glow" />
+              <feMerge>
+                <feMergeNode in="glow" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+
+            {/* Neon Area Fill Gradient under the arc */}
+            <linearGradient id="altitudeGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#0ea5e9" stopOpacity={embedded ? "0.22" : "0.28"} />
+              <stop offset="60%" stopColor="#2563eb" stopOpacity={embedded ? "0.08" : "0.12"} />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+            </linearGradient>
+
+            {/* Airplane Engine Afterglow */}
+            <radialGradient id="engineGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.9" />
+              <stop offset="45%" stopColor="#0ea5e9" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#0284c7" stopOpacity="0" />
+            </radialGradient>
+
+            {/* Trajectory Laser Gradient */}
+            <linearGradient id="laserPathGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#0ea5e9" />
+              <stop offset="50%" stopColor="#38bdf8" />
+              <stop offset="100%" stopColor="#60a5fa" />
+            </linearGradient>
+          </defs>
+
+          {/* Runway Base Ground Line */}
           <line
             x1={padding - 20}
             y1={baseY}
             x2={width - padding + 20}
             y2={baseY}
             stroke="var(--trajectory-line)"
-            strokeWidth="1"
+            strokeWidth="1.2"
+            opacity="0.8"
           />
 
-          {/* Full arc (background) */}
+          {/* Altitude Gradient Area under Completed Flight Path */}
+          {areaPath && (
+            <path
+              d={areaPath}
+              fill="url(#altitudeGradient)"
+              className={styles.altitudeArea}
+            />
+          )}
+
+          {/* Inactive / Planned Flight Corridor Arc */}
           <path
             d={arcPath}
             fill="none"
             stroke="var(--trajectory-line)"
-            strokeWidth="2"
+            strokeWidth={embedded ? "1.8" : "2.2"}
             strokeDasharray="6 4"
+            opacity="0.85"
           />
 
-          {/* Completed arc */}
+          {/* Glowing Completed Laser Trajectory Arc */}
           {completedPath && (
             <path
               ref={completedPathRef}
               d={completedPath}
               fill="none"
-              stroke="#3b82f6"
-              strokeWidth="2.5"
+              stroke="url(#laserPathGradient)"
+              strokeWidth={embedded ? "2.6" : "3.4"}
               strokeLinecap="round"
+              filter="url(#laserGlow)"
+              className={styles.completedArc}
             />
           )}
 
-          {/* Milestone dots and labels */}
+          {/* Milestone Waypoint Beacons */}
           {milestones.map((m) => {
-            const pt = getPointOnArc(m.t, width, height, padding);
-            const isCompleted = progress >= m.t;
-            const isCurrent = Math.abs(progress - m.t) < 0.08;
+            const pt = getPointOnArc(m.t, width, height, padding, embedded);
+            const isCompleted = activeT >= m.t;
+            const isCurrent = Math.abs(activeT - m.t) < 0.08;
+
             return (
-              <g key={m.id}>
-                {/* Vertical tick */}
+              <g key={m.id} className={styles.milestoneGroup}>
+                {/* Vertical Altitude Drop Line */}
                 <line
                   x1={pt.x}
                   y1={pt.y}
                   x2={pt.x}
                   y2={baseY}
-                  stroke={isCompleted ? 'rgba(59,130,246,0.3)' : 'var(--trajectory-line)'}
-                  strokeWidth="1"
-                  strokeDasharray="3 3"
+                  stroke={isCompleted ? 'rgba(14, 165, 233, 0.45)' : 'var(--trajectory-line)'}
+                  strokeWidth={isCurrent ? "1.5" : "1"}
+                  strokeDasharray={isCurrent ? "2 2" : "3 3"}
+                  opacity={isCompleted ? "0.9" : "0.5"}
                 />
-                {/* Dot */}
+
+                {/* Waypoint Base Pin on Ground */}
+                <circle
+                  cx={pt.x}
+                  cy={baseY}
+                  r={isCurrent ? (embedded ? 2.5 : 3) : (embedded ? 1.5 : 2)}
+                  fill={isCompleted ? '#0ea5e9' : 'var(--text-muted)'}
+                />
+
+                {/* Radar Waypoint Dot on Arc */}
                 <circle
                   cx={pt.x}
                   cy={pt.y}
-                  r={isCurrent ? 5 : 3}
-                  fill={isCompleted ? '#3b82f6' : 'var(--text-muted)'}
+                  r={isCurrent ? (embedded ? 4.5 : 6) : (embedded ? 2.8 : 3.5)}
+                  fill={isCompleted ? '#38bdf8' : 'var(--bg-card)'}
+                  stroke={isCompleted ? '#0284c7' : 'var(--trajectory-line)'}
+                  strokeWidth={isCurrent ? "2" : "1.5"}
+                  className={isCurrent ? styles.activeBeaconDot : ''}
                 />
+
+                {/* Radiating Radar Ring on Active Current Waypoint */}
                 {isCurrent && (
                   <circle
                     cx={pt.x}
                     cy={pt.y}
-                    r="10"
+                    r={embedded ? "9" : "14"}
                     fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth="1"
-                    opacity="0.4"
+                    stroke="#0ea5e9"
+                    strokeWidth="1.5"
+                    opacity="0.6"
                   >
-                    <animate attributeName="r" from="6" to="14" dur="1.5s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" from="0.5" to="0" dur="1.5s" repeatCount="indefinite" />
+                    <animate attributeName="r" from={embedded ? "5" : "7"} to={embedded ? "14" : "20"} dur="1.8s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" from="0.7" to="0" dur="1.8s" repeatCount="indefinite" />
                   </circle>
                 )}
-                {/* Label */}
+
+                {/* Waypoint Label */}
                 <text
                   x={pt.x}
-                  y={baseY + 16}
+                  y={baseY + (embedded ? 13 : 18)}
                   textAnchor="middle"
-                  fontSize="9"
-                  fontFamily="'IBM Plex Mono', monospace"
-                  fontWeight="600"
-                  letterSpacing="0.06em"
-                  fill={isCompleted ? '#3b82f6' : 'var(--text-muted)'}
+                  fontSize={embedded ? "7.5" : "9.5"}
+                  fontFamily="var(--font-mono)"
+                  fontWeight={isCurrent ? "800" : "600"}
+                  letterSpacing="0.08em"
+                  fill={isCurrent ? '#0ea5e9' : (isCompleted ? 'var(--text-primary)' : 'var(--text-muted)')}
+                  className={styles.waypointLabel}
                 >
                   {m.label}
                 </text>
@@ -449,121 +614,195 @@ export default function FlightTrajectory({ flight }) {
             );
           })}
 
-          {/* Departure code */}
-          <text
-            x={padding}
-            y={baseY + 38}
-            textAnchor="middle"
-            fontSize="18"
-            fontFamily="'Space Grotesk', sans-serif"
-            fontWeight="700"
-            fill="var(--trajectory-text)"
-          >
-            {depIata}
-          </text>
-          
-          {/* Departure airport name (Not city name) */}
-          <text
-            x={padding}
-            y={baseY + 50}
-            textAnchor="middle"
-            fontSize="9"
-            fontFamily="'IBM Plex Mono', monospace"
-            fontWeight="500"
-            fill="var(--text-secondary)"
-          >
-            {iataCityMap[depIata] ? `${iataCityMap[depIata]}` : shortenAirportName(flight.departure?.airport || '')}
-          </text>
+          {/* Standalone Airport IATA Labels */}
+          {!embedded && (
+            <>
+              {/* Departure */}
+              <text
+                x={padding}
+                y={baseY + 42}
+                textAnchor="middle"
+                fontSize="20"
+                fontFamily="var(--font-heading)"
+                fontWeight="800"
+                fill="var(--text-primary)"
+              >
+                {depIata}
+              </text>
+              <text
+                x={padding}
+                y={baseY + 56}
+                textAnchor="middle"
+                fontSize="9.5"
+                fontFamily="var(--font-mono)"
+                fontWeight="600"
+                fill="var(--text-secondary)"
+              >
+                {iataCityMap[depIata] ? `${iataCityMap[depIata]}` : shortenAirportName(flight.departure?.airport || '')}
+              </text>
 
-          {/* Arrival code */}
-          <text
-            x={width - padding}
-            y={baseY + 38}
-            textAnchor="middle"
-            fontSize="18"
-            fontFamily="'Space Grotesk', sans-serif"
-            fontWeight="700"
-            fill="var(--trajectory-text)"
-          >
-            {arrIata}
-          </text>
+              {/* Arrival */}
+              <text
+                x={width - padding}
+                y={baseY + 42}
+                textAnchor="middle"
+                fontSize="20"
+                fontFamily="var(--font-heading)"
+                fontWeight="800"
+                fill="var(--text-primary)"
+              >
+                {arrIata}
+              </text>
+              <text
+                x={width - padding}
+                y={baseY + 56}
+                textAnchor="middle"
+                fontSize="9.5"
+                fontFamily="var(--font-mono)"
+                fontWeight="600"
+                fill="var(--text-secondary)"
+              >
+                {iataCityMap[arrIata] ? `${iataCityMap[arrIata]}` : shortenAirportName(flight.arrival?.airport || '')}
+              </text>
+            </>
+          )}
 
-          {/* Arrival airport name (Not city name) */}
-          <text
-            x={width - padding}
-            y={baseY + 50}
-            textAnchor="middle"
-            fontSize="9"
-            fontFamily="'IBM Plex Mono', monospace"
-            fontWeight="500"
-            fill="var(--text-secondary)"
-          >
-            {iataCityMap[arrIata] ? `${iataCityMap[arrIata]}` : shortenAirportName(flight.arrival?.airport || '')}
-          </text>
-
-          {/* Plane speed tag above plane */}
+          {/* Live Flight Telemetry HUD Badge above Airplane */}
           {speedKts !== null && (
-            <g transform={`translate(${planePos.x}, ${planePos.y - 24})`}>
-              <rect x="-38" y="-9" width="76" height="15" rx="3" fill="var(--bg-secondary)" stroke="#3b82f6" strokeWidth="0.8" />
-              <text x="0" y="2" textAnchor="middle" fontSize="8.5" fontFamily="'IBM Plex Mono', monospace" fontWeight="700" fill="#3b82f6">
-                {speedKts} KTS
+            <g 
+              transform={`translate(${planePos.x}, ${planePos.y - (embedded ? 18 : 26)})`}
+              className={styles.speedHudTag}
+            >
+              <rect 
+                x={embedded ? "-34" : "-46"} 
+                y={embedded ? "-8" : "-10"} 
+                width={embedded ? "68" : "92"} 
+                height={embedded ? "15" : "18"} 
+                rx="4" 
+                fill="var(--bg-card)" 
+                stroke="#0ea5e9" 
+                strokeWidth="1" 
+                className={styles.hudBadgeBg}
+              />
+              <text 
+                x="0" 
+                y={embedded ? "3" : "3"} 
+                textAnchor="middle" 
+                fontSize={embedded ? "7.5" : "9"} 
+                fontFamily="var(--font-mono)" 
+                fontWeight="700" 
+                fill="#0ea5e9"
+              >
+                {convertSpeed ? `${convertSpeed(speedKts).value} ${convertSpeed(speedKts).unit}` : `${speedKts} KTS`}
               </text>
             </g>
           )}
 
-          {/* Plane icon (scaled up and rotated facing the flight path) */}
-          <g transform={`translate(${planePos.x}, ${planePos.y}) rotate(${angle})`}>
-            <g transform="translate(-16.8, -16.8) scale(1.4)">
+          {/* Modern Airliner Icon with Exhaust Afterglow & Levitation */}
+          <g 
+            transform={`translate(${planePos.x}, ${planePos.y}) rotate(${angle})`}
+            className={styles.airplaneContainer}
+          >
+            {/* Twin Engine Particle Exhaust Glow */}
+            <ellipse
+              cx="0"
+              cy={embedded ? "12" : "16"}
+              rx={embedded ? "5" : "7"}
+              ry={embedded ? "10" : "14"}
+              fill="url(#engineGlow)"
+              className={styles.engineFlare}
+            />
+
+            {/* Pulsing Radar Aura */}
+            <circle 
+              cx="0" 
+              cy="0" 
+              r={embedded ? "18" : "24"} 
+              fill="url(#engineGlow)" 
+              opacity="0.35" 
+              className={styles.planeGlowPulse} 
+            />
+
+            {/* Aerodynamic Jet Airliner Vector SVG */}
+            <g transform={embedded ? "translate(-12, -12) scale(1.05)" : "translate(-16, -16) scale(1.4)"}>
+              {/* Airplane body shadow */}
               <path
-                d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"
-                fill="var(--trajectory-text)"
+                d="M12 2L9.5 9.5H3L1.5 11L9.5 13.5V18.5L7.5 20V21.5L12 20.2L16.5 21.5V20L14.5 18.5V13.5L22.5 11L21 9.5H14.5L12 2Z"
+                fill="rgba(0, 0, 0, 0.3)"
+                transform="translate(1, 1)"
               />
+              {/* Main airplane shape */}
+              <path
+                d="M12 2L9.5 9.5H3L1.5 11L9.5 13.5V18.5L7.5 20V21.5L12 20.2L16.5 21.5V20L14.5 18.5V13.5L22.5 11L21 9.5H14.5L12 2Z"
+                fill="var(--text-primary)"
+                stroke="#0ea5e9"
+                strokeWidth="0.8"
+                strokeLinejoin="round"
+                className={styles.airlinerBody}
+              />
+              {/* Cockpit canopy glass */}
+              <ellipse cx="12" cy="5.5" rx="1.2" ry="2" fill="#38bdf8" />
             </g>
-            {/* Plane glow */}
-            <circle cx="0" cy="0" r="22" fill="var(--accent-glow)" className={styles.glowPulse} />
           </g>
+
+          {/* Interactive Scrub Indicator / Hover Ring */}
+          {hoverT !== null && (
+            <g transform={`translate(${planePos.x}, ${planePos.y})`}>
+              <circle r={embedded ? "8" : "12"} fill="none" stroke="#38bdf8" strokeWidth="2" strokeDasharray="3 3" />
+            </g>
+          )}
         </svg>
       </div>
 
-      {/* Timer bar */}
-      <div className={styles.timerBar}>
-        <div className={styles.timerSection}>
-          <span className={styles.timerLabel}>DEP</span>
-          <span className={styles.timerValue}>
-            {formatLocalTime(flight.departure?.scheduled)}
-          </span>
-          <span className={styles.timerDate}>
-            {flight.departure?.scheduled ? formatDate(flight.departure.scheduled) : ''}
-          </span>
-        </div>
-        <div className={styles.progressInfo}>
-          <span className={styles.progressPercent}>{Math.round(progress * 100)}%</span>
-        </div>
-        <div className={styles.timerSection} style={{ textAlign: 'right' }}>
-          <span className={styles.timerLabel}>ARR</span>
-          <span className={styles.timerValue}>
-            {formatLocalTime(flight.arrival?.scheduled)}
-          </span>
-          <span className={styles.timerDate}>
-            {flight.arrival?.scheduled ? formatDate(flight.arrival.scheduled) : ''}
-          </span>
-        </div>
-      </div>
+      {/* Standalone Timer bar & Flight Info */}
+      {!embedded && (
+        <>
+          <div className={styles.timerBar}>
+            <div className={styles.timerSection}>
+              <span className={styles.timerLabel}>DEPARTURE</span>
+              <span className={styles.timerValue}>
+                {formatLocalTime(flight.departure?.scheduled)}
+              </span>
+              <span className={styles.timerDate}>
+                {flight.departure?.scheduled ? formatDate(flight.departure.scheduled) : ''}
+              </span>
+            </div>
+            
+            <div className={styles.progressInfo}>
+              <div className={styles.progressBadge}>
+                <span className={styles.progressPercent}>{Math.round(activeT * 100)}%</span>
+                <span className={styles.progressSubLabel}>AIRWAY TRAJECTORY</span>
+              </div>
+              <div className={styles.flightPhaseTag}>
+                {currentMilestone.label} PHASE
+              </div>
+            </div>
 
-      {/* Terminal & Belt Info */}
-      <div className={styles.facilityBar}>
-        <div className={styles.facilitySection}>
-          {flight.departure?.terminal && <span className={styles.facilityItem}>T{flight.departure.terminal}</span>}
-          {flight.departure?.gate && <span className={styles.facilityItem}>Gate {flight.departure.gate}</span>}
-        </div>
-        <div className={styles.facilitySection} style={{ justifyContent: 'flex-end' }}>
-          {flight.arrival?.terminal && <span className={styles.facilityItem}>T{flight.arrival.terminal}</span>}
-          {flight.arrival?.gate && <span className={styles.facilityItem}>Gate {flight.arrival.gate}</span>}
-          {flight.arrival?.baggage && <span className={styles.facilityItem}>Belt {flight.arrival.baggage}</span>}
-        </div>
-      </div>
+            <div className={styles.timerSection} style={{ textAlign: 'right' }}>
+              <span className={styles.timerLabel}>ARRIVAL</span>
+              <span className={styles.timerValue}>
+                {formatLocalTime(flight.arrival?.scheduled)}
+              </span>
+              <span className={styles.timerDate}>
+                {flight.arrival?.scheduled ? formatDate(flight.arrival.scheduled) : ''}
+              </span>
+            </div>
+          </div>
 
+          {/* Terminal & Belt Info */}
+          <div className={styles.facilityBar}>
+            <div className={styles.facilitySection}>
+              {flight.departure?.terminal && <span className={styles.facilityItem}>Term {flight.departure.terminal}</span>}
+              {flight.departure?.gate && <span className={styles.facilityItem}>Gate {flight.departure.gate}</span>}
+            </div>
+            <div className={styles.facilitySection} style={{ justifyContent: 'flex-end' }}>
+              {flight.arrival?.terminal && <span className={styles.facilityItem}>Term {flight.arrival.terminal}</span>}
+              {flight.arrival?.gate && <span className={styles.facilityItem}>Gate {flight.arrival.gate}</span>}
+              {flight.arrival?.baggage && <span className={styles.facilityItem}>Belt {flight.arrival.baggage}</span>}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
-

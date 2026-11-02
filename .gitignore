@@ -57,4 +57,5 @@ next-env.d.ts
 .idea/
 .vscode/
 *.swp
-*.swo
+# Inspo assets
+/public/inspo/
