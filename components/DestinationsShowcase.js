@@ -73,6 +73,15 @@ export default function DestinationsShowcase({ onSelectDestination }) {
   // Filtered Featured Destinations
   const filteredFeatured = useMemo(() => {
     return iconicDestinations.filter(item => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toUpperCase();
+        const matches = item.iata.includes(q) || 
+          item.city.toUpperCase().includes(q) || 
+          item.name.toUpperCase().includes(q) ||
+          item.landmark.toUpperCase().includes(q) ||
+          item.state.toUpperCase().includes(q);
+        if (!matches) return false;
+      }
       if (activeFilter === 'ALL') return true;
       if (activeFilter === 'NORTH') return ['DEL', 'JAI', 'SXR', 'AGR'].includes(item.iata);
       if (activeFilter === 'SOUTH') return ['BLR', 'COK'].includes(item.iata);
@@ -80,7 +89,7 @@ export default function DestinationsShowcase({ onSelectDestination }) {
       if (activeFilter === 'EAST') return ['CCU'].includes(item.iata);
       return true;
     });
-  }, [activeFilter]);
+  }, [activeFilter, searchQuery]);
 
   // Filtered All Public Airports (including smart place resolution)
   const filteredAllAirports = useMemo(() => {
@@ -224,29 +233,27 @@ export default function DestinationsShowcase({ onSelectDestination }) {
             )}
           </div>
 
-          {viewMode === 'all' && (
-            <div className={styles.searchWrapper}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.searchIcon}>
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by city, town (e.g. Agra, Rishikesh, Ooty), or IATA..."
-                className={styles.airportSearchInput}
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className={styles.clearSearchBtn} aria-label="Clear search">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              )}
-            </div>
-          )}
+          <div className={styles.searchWrapper}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.searchIcon}>
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by city, town (e.g. Agra, Goa, Leh, Jaipur), or IATA..."
+              className={styles.airportSearchInput}
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className={styles.clearSearchBtn} aria-label="Clear search">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -375,6 +382,21 @@ export default function DestinationsShowcase({ onSelectDestination }) {
               </div>
             </div>
           ))}
+          {filteredFeatured.length === 0 && (
+            <div className={styles.noResultsBox} style={{ gridColumn: '1 / -1', padding: '32px 20px', textAlign: 'center' }}>
+              <p style={{ margin: '0 0 12px', fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                No iconic landmark destination matches "{searchQuery}".
+              </p>
+              <button
+                type="button"
+                className={styles.locateGpsBtn}
+                onClick={() => setViewMode('all')}
+                style={{ margin: '0 auto', fontSize: '0.85rem', padding: '8px 16px' }}
+              >
+                Search across all 144 Indian airports →
+              </button>
+            </div>
+          )}
         </div>
       )}
 

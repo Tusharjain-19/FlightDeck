@@ -11,19 +11,20 @@
   }
 }
 
-/* Top Control Row: Result Count + Card Template Switcher */
+/* Top Control Row: Result Count & Live Telemetry Badge */
 .topControlRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 
 .resultsHeader {
   display: flex;
   align-items: center;
+  gap: 12px;
 }
 
 .resultCount {
@@ -35,65 +36,32 @@
   color: var(--text-muted);
 }
 
-/* Card Style Template Switcher */
-.templateBar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.templateLabel {
+.liveRadarBadge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
   font-size: 0.68rem;
   font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.08em;
-}
-
-.templateChips {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--bg-card);
-  padding: 3px 4px;
+  color: var(--accent);
+  background: rgba(14, 165, 233, 0.1);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  padding: 3px 10px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
 }
 
-:global([data-theme="dark"]) .templateChips {
-  background: #000000;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+.liveRadarDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  box-shadow: 0 0 8px #0ea5e9;
+  animation: pulseDot 1.8s infinite ease-in-out;
 }
 
-.templateChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 12px;
-  border-radius: var(--radius-pill);
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: var(--font-display);
-  font-size: 0.76rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.templateChip:hover {
-  color: var(--text-primary);
-  background: rgba(14, 165, 233, 0.08);
-}
-
-.activeTemplateChip {
-  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%) !important;
-  color: #ffffff !important;
-  box-shadow: 0 2px 10px rgba(14, 165, 233, 0.35);
+@keyframes pulseDot {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); }
 }
 
 /* Sub-tabs for Departures / Arrivals */
@@ -219,7 +187,7 @@
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 4px 24px -2px rgba(15, 23, 42, 0.06), 0 2px 8px -1px rgba(15, 23, 42, 0.04);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 :global([data-theme="dark"]) .boardingPass {
@@ -230,12 +198,12 @@
 
 .boardingPass:hover {
   border-color: var(--accent);
-  box-shadow: 0 12px 36px -4px rgba(14, 165, 233, 0.2), 0 4px 12px -1px rgba(14, 165, 233, 0.12);
-  transform: translateY(-2px);
+  box-shadow: 0 10px 32px rgba(14, 165, 233, 0.16);
+  /* Do not translateY/move card on hover as requested */
 }
 
 /* --------------------------------------------------------
-   DUAL DESTINATION ATMOSPHERIC BACKDROP (DEPARTURE + ARRIVAL)
+   AUTHENTIC INDIAN DESTINATIONS PHOTOGRAPHIC BACKDROP
    -------------------------------------------------------- */
 .fullCardBackgroundWrap {
   position: absolute;
@@ -256,11 +224,11 @@
   height: 100%;
   background-size: cover;
   background-position: center left;
-  opacity: 0.14;
-  filter: contrast(110%);
-  mask-image: linear-gradient(to right, black 40%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, black 40%, transparent 100%);
-  transition: transform 0.4s ease, opacity 0.3s ease;
+  opacity: 0.08;
+  filter: saturate(110%) contrast(105%);
+  mask-image: linear-gradient(to right, black 35%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 35%, transparent 100%);
+  transition: opacity 0.3s ease;
 }
 
 /* Right Half: Arrival Landmark Image */
@@ -272,61 +240,39 @@
   height: 100%;
   background-size: cover;
   background-position: center right;
-  opacity: 0.16;
-  filter: contrast(110%);
-  mask-image: linear-gradient(to left, black 40%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to left, black 40%, transparent 100%);
-  transition: transform 0.4s ease, opacity 0.3s ease;
+  opacity: 0.08;
+  filter: saturate(110%) contrast(105%);
+  mask-image: linear-gradient(to left, black 35%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to left, black 35%, transparent 100%);
+  transition: opacity 0.3s ease;
 }
 
 .boardingPass:hover .depCardBackgroundImage,
 .boardingPass:hover .arrCardBackgroundImage {
-  opacity: 0.24;
-  transform: scale(1.03);
+  opacity: 0.12;
 }
 
 .fullCardBackgroundOverlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.94) 50%, rgba(255, 255, 255, 0.88) 100%);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.98) 50%, rgba(255, 255, 255, 0.96) 100%);
   pointer-events: none;
 }
 
 :global([data-theme="dark"]) .depCardBackgroundImage,
 :global([data-theme="dark"]) .arrCardBackgroundImage {
-  opacity: 0.28;
-  filter: brightness(0.85) contrast(130%);
+  opacity: 0.22;
+  filter: brightness(0.85) contrast(120%) saturate(110%);
 }
 
 :global([data-theme="dark"]) .boardingPass:hover .depCardBackgroundImage,
 :global([data-theme="dark"]) .boardingPass:hover .arrCardBackgroundImage {
-  opacity: 0.38;
+  opacity: 0.30;
 }
 
 :global([data-theme="dark"]) .fullCardBackgroundOverlay {
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.85) 0%, rgba(3, 4, 8, 0.82) 50%, rgba(0, 0, 0, 0.88) 100%);
+  background: linear-gradient(90deg, rgba(2, 6, 18, 0.88) 0%, rgba(3, 7, 20, 0.84) 50%, rgba(2, 6, 18, 0.88) 100%);
   backdrop-filter: blur(1px);
-}
-
-/* Card Templates Styles */
-.template_executive {
-  border-left: 6px solid #2563eb;
-}
-
-:global([data-theme="dark"]) .template_executive {
-  border-left: 6px solid #0ea5e9;
-  background: linear-gradient(135deg, rgba(5, 7, 14, 0.95) 0%, #000000 100%);
-}
-
-.template_radar {
-  border: 1px solid rgba(14, 165, 233, 0.4) !important;
-  background: radial-gradient(circle at 10% 10%, rgba(14, 165, 233, 0.08) 0%, #000000 70%) !important;
-  box-shadow: 0 0 25px rgba(14, 165, 233, 0.15) !important;
-}
-
-.template_classic {
-  border-radius: 12px;
-  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0, 0, 0, 0.01) 3px, rgba(0, 0, 0, 0.01) 6px), var(--ticket-bg);
 }
 
 /* Surface Split: Left Main Pass + Perforation + Right Stub */
@@ -349,6 +295,8 @@
    LEFT MAIN TICKET BODY
    -------------------------------------------------------- */
 .ticketMain {
+  position: relative;
+  z-index: 2;
   padding: 20px 24px 18px;
   display: flex;
   flex-direction: column;
@@ -357,12 +305,14 @@
 
 /* Top Header */
 .ticketHeader {
+  position: relative;
+  z-index: 3;
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
 }
 
 :global([data-theme="dark"]) .ticketHeader {
@@ -378,14 +328,43 @@
 
 .carrierName {
   font-family: var(--font-heading);
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+:global([data-theme="dark"]) .carrierName {
+  color: #f8fafc;
 }
 
 .airlineLogoWrap {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+:global([data-theme="dark"]) .airlineLogoWrap {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.airlineLogoImg {
+  object-fit: contain;
+  max-height: 28px;
+  width: auto;
+}
+
+:global([data-theme="dark"]) .airlineLogoImg {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.4));
 }
 
 .flightCodeBadge {
@@ -393,42 +372,104 @@
   font-size: 0.85rem;
   font-weight: 800;
   color: #ffffff;
-  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  background: #0f172a;
+  border: 1px solid #0f172a;
   padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  letter-spacing: 0.03em;
+  border-radius: 6px;
+  letter-spacing: 0.04em;
+}
+
+:global([data-theme="dark"]) .flightCodeBadge {
+  background: #1e293b;
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
 }
 
 .saveFlightBtn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-family: var(--font-heading);
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  padding: 3px 8px;
-  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  padding: 4px 10px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-:global([data-theme="dark"]) .saveFlightBtn {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+.saveFlightBtn svg {
+  stroke: currentColor;
 }
 
 .saveFlightBtn:hover {
-  color: var(--accent);
-  border-color: var(--accent);
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .saveFlightBtn {
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+:global([data-theme="dark"]) .saveFlightBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .savedActive {
-  background: rgba(234, 179, 8, 0.15) !important;
-  color: #eab308 !important;
-  border-color: rgba(234, 179, 8, 0.3) !important;
+  background: rgba(234, 179, 8, 0.12) !important;
+  color: #b45309 !important;
+  border-color: #f59e0b !important;
+}
+
+:global([data-theme="dark"]) .savedActive {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fbbf24 !important;
+  border-color: #fbbf24 !important;
+}
+
+.shareFlightBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-heading);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px solid rgba(2, 132, 199, 0.25);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.shareFlightBtn svg {
+  stroke: currentColor;
+}
+
+.shareFlightBtn:hover {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+:global([data-theme="dark"]) .shareFlightBtn {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+:global([data-theme="dark"]) .shareFlightBtn:hover {
+  background: #38bdf8;
+  color: #020617;
+  border-color: #38bdf8;
 }
 
 .ticketHeaderRight {
@@ -440,57 +481,113 @@
 
 .countdownBadge {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 700;
   padding: 3px 8px;
-  border-radius: var(--radius-pill);
-  background: rgba(14, 165, 233, 0.12);
-  color: var(--accent);
-  border: 1px solid rgba(14, 165, 233, 0.25);
+  border-radius: 6px;
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:global([data-theme="dark"]) .countdownBadge {
+  background: rgba(2, 132, 199, 0.15);
+  color: #7dd3fc;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.livePulseDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0284c7;
+  animation: beaconPulse 1.8s infinite;
+}
+
+@keyframes beaconPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.3); }
 }
 
 .countdownActive {
-  background: rgba(16, 185, 129, 0.14);
-  color: #10b981;
-  border-color: rgba(16, 185, 129, 0.3);
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+  border-color: #bbf7d0 !important;
+}
+
+:global([data-theme="dark"]) .countdownActive {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #86efac !important;
+  border-color: rgba(74, 222, 128, 0.35) !important;
 }
 
 .countdownLanded {
-  background: var(--bg-input);
-  color: var(--text-muted);
+  background: #f8fafc;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+:global([data-theme="dark"]) .countdownLanded {
+  background: #1e293b;
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .statusBadge {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
   letter-spacing: 0.06em;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+:global([data-theme="dark"]) .statusBadge {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
 }
 
 .statusActive {
-  background: rgba(14, 165, 233, 0.15);
-  color: #0ea5e9;
-  border: 1px solid rgba(14, 165, 233, 0.3);
+  background: rgba(16, 185, 129, 0.1) !important;
+  color: #059669 !important;
+  border: 1px solid rgba(16, 185, 129, 0.28) !important;
+}
+
+:global([data-theme="dark"]) .statusActive {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
 }
 
 .statusLanded {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.08);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .statusScheduled {
-  background: var(--bg-input);
-  color: var(--text-muted);
-  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+:global([data-theme="dark"]) .statusScheduled {
+  background: #111522;
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .statusCancelled {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.25);
 }
 
 /* --------------------------------------------------------
@@ -500,7 +597,7 @@
   display: grid;
   grid-template-columns: minmax(130px, auto) minmax(0, 1fr) minmax(130px, auto);
   align-items: center;
-  gap: 16px;
+  gap: 20px;
   padding: 10px 0 16px;
   position: relative;
   z-index: 2;
@@ -520,71 +617,79 @@
 
 .hubStageLabel {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 800;
-  color: var(--text-muted);
-  letter-spacing: 0.1em;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.08em;
 }
 
-.landmarkMiniTag {
-  font-size: 0.65rem;
-  color: var(--accent);
-  font-weight: 700;
+:global([data-theme="dark"]) .hubStageLabel {
+  color: #94a3b8;
 }
 
 .hubIata {
   font-family: var(--font-heading);
-  font-size: 2.1rem;
+  font-size: 2.85rem;
   font-weight: 900;
-  color: var(--text-primary);
+  color: #0f172a;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  margin: 4px 0 2px;
+}
+
+:global([data-theme="dark"]) .hubIata {
+  color: #f8fafc;
 }
 
 .hubCity {
   font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-top: 2px;
+  font-weight: 600;
+  color: #475569;
+}
+
+:global([data-theme="dark"]) .hubCity {
+  color: #94a3b8;
 }
 
 .hubTime {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .hubTimeVal {
   font-family: var(--font-mono);
-  font-size: 0.88rem;
+  font-size: 1.25rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: #0f172a;
+}
+
+:global([data-theme="dark"]) .hubTimeVal {
+  color: #f8fafc;
 }
 
 .hubTimeDate {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
 }
 
-.hubFacilityPill {
+:global([data-theme="dark"]) .hubTimeDate {
+  color: #94a3b8;
+}
+
+.hubFacilityText {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: var(--text-secondary);
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  padding: 2px 7px;
-  border-radius: var(--radius-sm);
-  margin-top: 5px;
-  display: inline-block;
-  width: fit-content;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 6px;
 }
 
-:global([data-theme="dark"]) .hubFacilityPill {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+:global([data-theme="dark"]) .hubFacilityText {
+  color: #94a3b8;
 }
 
 /* Center Route Arc Column */
@@ -600,118 +705,163 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 6px;
-  flex-wrap: wrap;
+  margin-top: 4px;
   justify-content: center;
 }
 
-.hubDurationBadge {
+.hubDurationText {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+:global([data-theme="dark"]) .hubDurationText {
+  color: #cbd5e1;
+}
+
+.hubMetaSeparator {
+  color: #cbd5e1;
+  font-size: 0.75rem;
+}
+
+:global([data-theme="dark"]) .hubMetaSeparator {
+  color: #475569;
+}
+
+.hubRouteStatusText {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #0284c7;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  font-weight: 800;
-  color: var(--text-secondary);
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
 }
 
-:global([data-theme="dark"]) .hubDurationBadge {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.hubStatusPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 800;
+:global([data-theme="dark"]) .hubRouteStatusText {
   color: #38bdf8;
-  background: rgba(14, 165, 233, 0.12);
-  border: 1px solid rgba(14, 165, 233, 0.25);
-  padding: 3px 9px;
-  border-radius: var(--radius-pill);
 }
 
 .hubLiveDot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #22c55e;
-  box-shadow: 0 0 8px #22c55e;
-  animation: pulseDotLive 1.5s infinite;
+  background-color: #0284c7;
+  box-shadow: 0 0 8px #0284c7;
+  animation: beaconPulse 1.8s infinite;
 }
 
-@keyframes pulseDotLive {
-  0% { transform: scale(0.9); opacity: 0.6; }
-  50% { transform: scale(1.3); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.6; }
+.hubTaxiDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+  animation: beaconPulse 1.8s infinite;
 }
 
-/* Bottom Metadata Chips */
+/* Bottom Metadata Specs Row */
 .ticketFooter {
+  position: relative;
+  z-index: 3;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding-top: 14px;
-  border-top: 1px solid rgba(226, 232, 240, 0.8);
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
 :global([data-theme="dark"]) .ticketFooter {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.ticketMetaChips {
+.specsRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 18px;
   flex-wrap: wrap;
 }
 
-.metaChip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  padding: 3px 9px;
-  border-radius: var(--radius-sm);
+.specItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-:global([data-theme="dark"]) .metaChip {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.metaLabel {
+.specLabel {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  color: #64748b;
 }
 
-.metaValue {
-  font-family: var(--font-data);
-  font-size: 0.72rem;
+:global([data-theme="dark"]) .specLabel {
+  color: #94a3b8;
+}
+
+.specValue {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: #0f172a;
+}
+
+:global([data-theme="dark"]) .specValue {
+  color: #f8fafc;
+}
+
+.specValueAccent {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #0284c7;
+}
+
+:global([data-theme="dark"]) .specValueAccent {
+  color: #38bdf8;
+}
+
+.specDivider {
+  width: 1px;
+  height: 20px;
+  background: #e2e8f0;
+}
+
+:global([data-theme="dark"]) .specDivider {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .inspectHint {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-heading);
-  font-size: 0.74rem;
-  font-weight: 700;
-  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  user-select: none;
+}
+
+.inspectHint:hover {
+  color: #0f172a;
+}
+
+:global([data-theme="dark"]) .inspectHint {
+  color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .inspectHint:hover {
+  color: #f8fafc;
 }
 
 /* --------------------------------------------------------
@@ -761,16 +911,19 @@
    3. RIGHT TEAR-OFF STUB WITH WORKING SCANNABLE QR CODE
    -------------------------------------------------------- */
 .ticketStub {
-  background: var(--ticket-stub-bg);
+  position: relative;
+  z-index: 2;
+  background: #ffffff;
   padding: 18px 20px 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border-left: 1px solid transparent;
+  border-left: none !important;
 }
 
 :global([data-theme="dark"]) .ticketStub {
-  background: rgba(4, 4, 6, 0.85);
+  background: #08080c !important;
+  border-left: none !important;
 }
 
 .stubHeader {
@@ -782,17 +935,25 @@
 
 .stubTitle {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 800;
-  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  color: #334155;
   letter-spacing: 0.12em;
+}
+
+:global([data-theme="dark"]) .stubTitle {
+  color: #cbd5e1;
 }
 
 .stubFlightNo {
   font-family: var(--font-mono);
-  font-size: 0.78rem;
-  font-weight: 800;
-  color: var(--accent);
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #0284c7;
+}
+
+:global([data-theme="dark"]) .stubFlightNo {
+  color: #38bdf8;
 }
 
 .stubRoute {
@@ -800,11 +961,11 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 0;
-  border-bottom: 1px dashed var(--border);
+  border-bottom: 1.5px dashed #cbd5e1;
 }
 
 :global([data-theme="dark"]) .stubRoute {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
+  border-bottom: 1.5px dashed rgba(255, 255, 255, 0.16);
 }
 
 .stubOrigin,
@@ -815,78 +976,103 @@
 
 .stubStageLabel {
   font-family: var(--font-mono);
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #334155;
+}
+
+:global([data-theme="dark"]) .stubStageLabel {
+  color: #94a3b8;
 }
 
 .stubIata {
   font-family: var(--font-heading);
-  font-size: 1.3rem;
-  font-weight: 900;
-  color: var(--text-primary);
+  font-size: 1.6rem;
+  font-weight: 950;
+  color: #020617;
   line-height: 1.1;
 }
 
+:global([data-theme="dark"]) .stubIata {
+  color: #ffffff;
+}
+
 .stubCity {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+:global([data-theme="dark"]) .stubCity {
+  color: #e2e8f0;
 }
 
 .stubPlaneIcon {
-  color: var(--accent);
+  color: #0284c7;
+}
+
+:global([data-theme="dark"]) .stubPlaneIcon {
+  color: #38bdf8;
 }
 
 .stubGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin: 10px 0;
+  gap: 10px;
+  margin: 12px 0;
 }
 
 .stubField {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .stubLabel {
   font-family: var(--font-mono);
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #334155;
+}
+
+:global([data-theme="dark"]) .stubLabel {
+  color: #94a3b8;
 }
 
 .stubValue {
   font-family: var(--font-data);
-  font-size: 0.8rem;
-  font-weight: 800;
-  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #020617;
 }
 
-/* INTERACTIVE WORKING QR CODE / BARCODE SECTION */
+:global([data-theme="dark"]) .stubValue {
+  color: #ffffff;
+}
+
+/* SEAMLESS WORKING SCANNABLE QR CODE (NO ARTIFICIAL BOX/RADIUS) */
 .stubCodeBox {
   margin-top: 8px;
-  padding: 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  padding: 6px 0 2px;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: opacity 0.2s ease;
 }
 
 :global([data-theme="dark"]) .stubCodeBox {
-  background: #000000;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent !important;
+  border: none !important;
 }
 
 .stubCodeBox:hover {
-  border-color: var(--accent);
-  box-shadow: 0 4px 18px rgba(14, 165, 233, 0.25);
-  transform: translateY(-2px);
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.88;
 }
 
 .codeSwitchHeader {
@@ -894,35 +1080,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
-}
-
-.codeTypeToggle {
-  display: flex;
-  background: var(--bg-input);
-  border-radius: 9999px;
-  padding: 2px;
-}
-
-:global([data-theme="dark"]) .codeTypeToggle {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.codeTypeBtn {
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  border: none;
-  background: transparent;
-  padding: 2px 7px;
-  border-radius: 9999px;
-  cursor: pointer;
-}
-
-.activeCodeType {
-  background: var(--accent);
-  color: #ffffff;
+  margin-bottom: 6px;
 }
 
 .scanBadge {
@@ -930,60 +1088,64 @@
   align-items: center;
   gap: 3px;
   font-family: var(--font-mono);
-  font-size: 0.58rem;
-  font-weight: 800;
-  color: var(--accent);
-  background: rgba(14, 165, 233, 0.12);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
   padding: 2px 6px;
-  border-radius: 9999px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
+:global([data-theme="dark"]) .scanBadge {
+  color: #38bdf8;
+  background: rgba(14, 165, 233, 0.15);
+  border-color: rgba(56, 189, 248, 0.3);
 }
 
 .qrCodeWrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  padding: 4px;
 }
 
 .qrSvgHolder {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-primary);
-  transition: transform 0.2s ease;
+  color: #0f172a;
 }
 
-.stubCodeBox:hover .qrSvgHolder {
-  transform: scale(1.05);
+.qrSvgHolder svg {
+  display: block;
+}
+
+.qrSvgHolder svg path {
+  fill: currentColor !important;
+}
+
+:global([data-theme="dark"]) .qrSvgHolder {
+  color: #ffffff !important;
+}
+
+:global([data-theme="dark"]) .qrSvgHolder svg path {
+  fill: #ffffff !important;
 }
 
 .qrScanHint {
   font-family: var(--font-mono);
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #0284c7;
+  letter-spacing: 0.03em;
+  margin-top: 3px;
 }
 
-.barcodeWrapper {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.barcodeSvg {
-  width: 100%;
-  height: 38px;
-  color: var(--text-primary);
-}
-
-.stubTicketNum {
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.05em;
+:global([data-theme="dark"]) .qrScanHint {
+  color: #38bdf8;
 }
 
 /* --------------------------------------------------------
@@ -1019,25 +1181,31 @@
   align-items: center;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.78rem;
+  font-weight: 900;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: #0284c7;
   margin-bottom: 12px;
+}
+
+:global([data-theme="dark"]) .sectionHeader {
+  color: #38bdf8;
 }
 
 .infoCard,
 .weatherCard {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
   border-radius: 14px;
   padding: 16px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 :global([data-theme="dark"]) .infoCard,
 :global([data-theme="dark"]) .weatherCard {
-  background: #08080c;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0d1117;
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  box-shadow: none;
 }
 
 .airportBlock {
@@ -1048,22 +1216,36 @@
 
 .airportBlockTitle {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 900;
+  color: #0284c7;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+:global([data-theme="dark"]) .airportBlockTitle {
+  color: #38bdf8;
 }
 
 .airportNameFull {
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+:global([data-theme="dark"]) .airportNameFull {
+  color: #ffffff;
 }
 
 .airportMeta {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+:global([data-theme="dark"]) .airportMeta {
+  color: #cbd5e1;
 }
 
 .timeGrid {
@@ -1077,15 +1259,34 @@
   align-items: baseline;
   gap: 5px;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.76rem;
+  color: #334155;
+  font-weight: 700;
+}
+
+:global([data-theme="dark"]) .timeLabelValue {
+  color: #cbd5e1;
+}
+
+.timeLabelValue strong {
+  color: #0f172a;
+  font-weight: 900;
+}
+
+:global([data-theme="dark"]) .timeLabelValue strong {
+  color: #ffffff;
 }
 
 .actualHighlight {
-  color: #10b981;
+  color: #10b981 !important;
 }
 
 .etaHighlight {
-  color: #0ea5e9;
+  color: #0284c7 !important;
+}
+
+:global([data-theme="dark"]) .etaHighlight {
+  color: #38bdf8 !important;
 }
 
 .facilityGrid {
@@ -1096,35 +1297,39 @@
 
 .facilityBadge {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 700;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  padding: 2px 7px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  padding: 3px 9px;
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: #0f172a;
 }
 
 :global([data-theme="dark"]) .facilityBadge {
-  background: #000000;
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #e2e8f0;
+  background: #1e293b;
+  border-color: #475569;
+  color: #ffffff;
 }
 
 .baggageBadge {
-  background: rgba(234, 179, 8, 0.12) !important;
-  color: #eab308 !important;
-  border-color: rgba(234, 179, 8, 0.3) !important;
+  background: rgba(234, 179, 8, 0.15) !important;
+  color: #d97706 !important;
+  border-color: rgba(234, 179, 8, 0.4) !important;
+}
+
+:global([data-theme="dark"]) .baggageBadge {
+  color: #fbbf24 !important;
 }
 
 .divider {
   height: 1px;
-  background: var(--border);
+  background: #e2e8f0;
   margin: 12px 0;
 }
 
 :global([data-theme="dark"]) .divider {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .airlineBrandBlock {
@@ -1139,41 +1344,63 @@
 }
 
 .airlineNameExpanded {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--text-primary);
+  font-size: 0.98rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+:global([data-theme="dark"]) .airlineNameExpanded {
+  color: #ffffff;
 }
 
 .airlineCodes {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+:global([data-theme="dark"]) .airlineCodes {
+  color: #cbd5e1;
 }
 
 .dataRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 0;
-  font-size: 0.76rem;
+  padding: 5px 0;
+  font-size: 0.78rem;
 }
 
 .dataLabel {
-  color: var(--text-muted);
+  color: #334155;
+  font-weight: 800;
+}
+
+:global([data-theme="dark"]) .dataLabel {
+  color: #94a3b8;
 }
 
 .dataValue {
-  font-weight: 700;
-  color: var(--text-primary);
+  font-weight: 900;
+  color: #0f172a;
+}
+
+:global([data-theme="dark"]) .dataValue {
+  color: #ffffff;
 }
 
 .subHeader {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 900;
+  color: #0284c7;
   margin-bottom: 4px;
+}
+
+:global([data-theme="dark"]) .subHeader {
+  color: #38bdf8;
 }
 
 .telemetryOffline {
@@ -1181,9 +1408,14 @@
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #334155;
   padding-top: 8px;
+}
+
+:global([data-theme="dark"]) .telemetryOffline {
+  color: #94a3b8;
 }
 
 /* Weather Card */
@@ -1195,15 +1427,24 @@
 }
 
 .weatherCity {
-  font-size: 1rem;
-  font-weight: 800;
-  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+:global([data-theme="dark"]) .weatherCity {
+  color: #ffffff;
 }
 
 .weatherSub {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
-  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+:global([data-theme="dark"]) .weatherSub {
+  color: #94a3b8;
 }
 
 .weatherMain {
@@ -1215,27 +1456,41 @@
 
 .weatherTemp {
   font-family: var(--font-data);
-  font-size: 2rem;
-  font-weight: 800;
-  color: var(--text-primary);
+  font-size: 2.1rem;
+  font-weight: 900;
+  color: #020617;
+}
+
+:global([data-theme="dark"]) .weatherTemp {
+  color: #ffffff;
 }
 
 .weatherDetails {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.74rem;
+  gap: 5px;
+  font-size: 0.76rem;
   margin-bottom: 12px;
 }
 
 .weatherDetail {
   display: flex;
   justify-content: space-between;
-  color: var(--text-muted);
+  color: #334155;
+  font-weight: 800;
+}
+
+:global([data-theme="dark"]) .weatherDetail {
+  color: #94a3b8;
 }
 
 .weatherDetail strong {
-  color: var(--text-primary);
+  color: #020617;
+  font-weight: 900;
+}
+
+:global([data-theme="dark"]) .weatherDetail strong {
+  color: #ffffff;
 }
 
 .openScannerBtn {
@@ -1248,18 +1503,18 @@
   color: #ffffff;
   border: none;
   border-radius: var(--radius-pill);
-  padding: 8px 14px;
+  padding: 10px 18px;
   font-family: var(--font-heading);
-  font-size: 0.76rem;
-  font-weight: 700;
+  font-size: 0.84rem;
+  font-weight: 900;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
   transition: all 0.2s ease;
 }
 
 .openScannerBtn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.45);
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.55);
 }
 
 /* ========================================================
@@ -1287,15 +1542,21 @@
 .scannerModal {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 28px;
+  border-radius: 24px;
   width: 100%;
-  max-width: 680px;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-width: 580px;
+  max-height: 92vh;
+  overflow: hidden;
   box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6);
   position: relative;
   display: flex;
   flex-direction: column;
+}
+
+:global([data-theme="light"]) .scannerModal {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
 }
 
 :global([data-theme="dark"]) .scannerModal {
@@ -1309,7 +1570,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1.5px solid #e2e8f0;
 }
 
 :global([data-theme="dark"]) .modalHeader {
@@ -1337,16 +1598,24 @@
   font-family: var(--font-heading);
   font-size: 1.15rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: #0f172a;
   line-height: 1.2;
+}
+
+:global([data-theme="dark"]) .modalTitle {
+  color: #ffffff;
 }
 
 .modalSub {
   font-family: var(--font-mono);
   font-size: 0.65rem;
   font-weight: 700;
-  color: var(--accent);
+  color: #0284c7;
   letter-spacing: 0.08em;
+}
+
+:global([data-theme="dark"]) .modalSub {
+  color: #38bdf8;
 }
 
 .modalCloseBtn {
@@ -1371,18 +1640,84 @@
 }
 
 .modalBody {
-  padding: 24px;
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  gap: 24px;
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
 }
 
-@media (max-width: 680px) {
-  .modalBody {
-    grid-template-columns: 1fr;
-    gap: 20px;
-    padding: 16px;
-  }
+.showcaseWrap {
+  width: 100%;
+  max-width: 530px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.showcasePassImg {
+  width: 100%;
+  height: auto;
+  max-height: 275px;
+  aspect-ratio: 1200 / 630;
+  border-radius: 14px;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(2, 132, 199, 0.2);
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+:global([data-theme="dark"]) .showcasePassImg {
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(14, 165, 233, 0.35);
+}
+
+.showcaseLoadingBox {
+  width: 100%;
+  height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: #334155;
+  font-weight: 700;
+}
+
+:global([data-theme="dark"]) .showcaseLoadingBox {
+  background: #08080c;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #94a3b8;
+}
+
+.shareActiveToast {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 530px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(14, 165, 233, 0.15);
+  border: 1px solid rgba(14, 165, 233, 0.35);
+  color: #0284c7;
+  font-size: 0.76rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-align: center;
+}
+
+:global([data-theme="dark"]) .shareActiveToast {
+  background: rgba(14, 165, 233, 0.2);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
 }
 
 /* Scanner Frame with Animated Laser Beam */
@@ -1390,7 +1725,123 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+}
+
+.modalViewSwitcher {
+  display: flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid #cbd5e1;
+  gap: 4px;
+  width: 100%;
+}
+
+:global([data-theme="dark"]) .modalViewSwitcher {
+  background: #0d1117;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.modalSwitchBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: transparent;
+  color: #334155;
+  font-family: var(--font-heading);
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+:global([data-theme="dark"]) .modalSwitchBtn {
+  color: #94a3b8;
+}
+
+.modalSwitchBtn:hover {
+  color: #0284c7;
+}
+
+:global([data-theme="dark"]) .modalSwitchBtn:hover {
+  color: #ffffff;
+}
+
+.modalSwitchActive {
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%) !important;
+  color: #ffffff !important;
+  font-weight: 800;
+  box-shadow: 0 2px 10px rgba(14, 165, 233, 0.35);
+}
+
+/* Photo Pass Card Preview */
+.photoPassPreviewWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding-top: 4px;
+}
+
+.photoPassPreviewImg {
+  width: 100%;
+  max-width: 310px;
+  height: auto;
+  aspect-ratio: 1200 / 630;
+  border-radius: 14px;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(2, 132, 199, 0.25);
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+:global([data-theme="dark"]) .photoPassPreviewImg {
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(14, 165, 233, 0.35);
+}
+
+.photoPassLoadingBox {
+  width: 100%;
+  height: 155px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: #334155;
+  font-weight: 700;
+}
+
+:global([data-theme="dark"]) .photoPassLoadingBox {
+  background: #08080c;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #94a3b8;
+}
+
+.photoPassHint {
+  font-size: 0.72rem;
+  color: #334155;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.3;
+  padding: 0 6px;
+}
+
+:global([data-theme="dark"]) .photoPassHint {
+  color: #94a3b8;
 }
 
 .scannerFrame {
@@ -1455,18 +1906,30 @@
 
 .qrCodeUrlBadge {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: var(--accent);
-  background: rgba(14, 165, 233, 0.1);
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #0284c7;
+  background: #e0f2fe;
+  border: 1px solid #7dd3fc;
   padding: 3px 8px;
   border-radius: var(--radius-pill);
 }
 
+:global([data-theme="dark"]) .qrCodeUrlBadge {
+  color: #38bdf8;
+  background: rgba(14, 165, 233, 0.2);
+  border-color: rgba(14, 165, 233, 0.4);
+}
+
 .scanPromptText {
-  font-size: 0.72rem;
-  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #334155;
   line-height: 1.3;
+}
+
+:global([data-theme="dark"]) .scanPromptText {
+  color: #cbd5e1;
 }
 
 .simulateScanBtn {
@@ -1475,7 +1938,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
   color: #ffffff;
   border: none;
   border-radius: var(--radius-pill);
@@ -1508,8 +1971,8 @@
 
 /* Modal Right Pass Details */
 .modalPassCard {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
   border-radius: 20px;
   padding: 18px;
   display: flex;
@@ -1531,26 +1994,41 @@
 
 .modalAirlineName {
   display: block;
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #334155;
+}
+
+:global([data-theme="dark"]) .modalAirlineName {
+  color: #94a3b8;
 }
 
 .modalFlightCode {
   font-family: var(--font-mono);
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   font-weight: 900;
-  color: var(--text-primary);
+  color: #020617;
+}
+
+:global([data-theme="dark"]) .modalFlightCode {
+  color: #ffffff;
 }
 
 .modalStatusPill {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 800;
+  font-size: 0.68rem;
+  font-weight: 900;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1.5px solid #86efac;
+}
+
+:global([data-theme="dark"]) .modalStatusPill {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
 }
 
 .modalRouteRow {
@@ -1558,8 +2036,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 14px 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  border-top: 1.5px solid #e2e8f0;
+  border-bottom: 1.5px solid #e2e8f0;
   margin-bottom: 16px;
 }
 
@@ -1570,34 +2048,51 @@
 .modalIata {
   display: block;
   font-family: var(--font-heading);
-  font-size: 1.8rem;
-  font-weight: 900;
-  color: var(--text-primary);
+  font-size: 1.85rem;
+  font-weight: 950;
+  color: #020617;
   line-height: 1;
+}
+
+:global([data-theme="dark"]) .modalIata {
+  color: #ffffff;
 }
 
 .modalCityName {
   display: block;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+:global([data-theme="dark"]) .modalCityName {
+  color: #f1f5f9;
 }
 
 .modalTime {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #334155;
+}
+
+:global([data-theme="dark"]) .modalTime {
+  color: #cbd5e1;
 }
 
 .modalRouteArrow {
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: var(--accent);
+  color: #0284c7;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 800;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+:global([data-theme="dark"]) .modalRouteArrow {
+  color: #38bdf8;
 }
 
 .modalMetaGrid {
@@ -1614,16 +2109,24 @@
 
 .modalMetaLabel {
   font-family: var(--font-mono);
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 900;
+  color: #334155;
+}
+
+:global([data-theme="dark"]) .modalMetaLabel {
+  color: #94a3b8;
 }
 
 .modalMetaVal {
   font-family: var(--font-data);
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 900;
+  color: #020617;
+}
+
+:global([data-theme="dark"]) .modalMetaVal {
+  color: #ffffff;
 }
 
 .modalActions {
@@ -1632,43 +2135,294 @@
 }
 
 .copyLinkBtn {
-  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 10px 14px;
+  gap: 5px;
+  padding: 8px 10px;
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius-pill);
   font-family: var(--font-heading);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.74rem;
+  font-weight: 800;
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+:global([data-theme="light"]) .copyLinkBtn {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #0f172a;
 }
 
 :global([data-theme="dark"]) .copyLinkBtn {
   background: #000000;
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f1f5f9;
 }
 
 .copyLinkBtn:hover {
   border-color: var(--accent);
   color: var(--accent);
+  transform: translateY(-1px);
 }
 
 .closeDoneBtn {
-  padding: 10px 20px;
-  background: var(--accent);
-  color: #ffffff;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  background: #e2e8f0;
+  color: #334155;
+  border: 1.5px solid #cbd5e1;
   border-radius: var(--radius-pill);
   font-family: var(--font-heading);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.74rem;
+  font-weight: 800;
   cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+:global([data-theme="dark"]) .closeDoneBtn {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.closeDoneBtn:hover {
+  background: #cbd5e1;
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
+:global([data-theme="dark"]) .closeDoneBtn:hover {
+  background: #334155;
+  color: #ffffff;
+}
+
+/* Share Flight Modal Styles */
+.shareModalGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.shareAppsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+@media (max-width: 520px) {
+  .shareAppsRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.shareAppBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+}
+
+.shareAppBtn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.shareAppSubtext {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.shareWhatsappBtn {
+  background: rgba(37, 211, 102, 0.12);
+  border-color: rgba(37, 211, 102, 0.35);
+  color: #15803d;
+}
+
+:global([data-theme="dark"]) .shareWhatsappBtn {
+  background: rgba(37, 211, 102, 0.16);
+  border-color: rgba(37, 211, 102, 0.45);
+  color: #22c55e;
+}
+
+.shareWhatsappBtn:hover {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35);
+}
+
+.shareInstagramBtn {
+  background: rgba(225, 48, 108, 0.12);
+  border-color: rgba(225, 48, 108, 0.35);
+  color: #be185d;
+}
+
+:global([data-theme="dark"]) .shareInstagramBtn {
+  background: rgba(225, 48, 108, 0.16);
+  border-color: rgba(225, 48, 108, 0.45);
+  color: #f43f5e;
+}
+
+.shareInstagramBtn:hover {
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+  border-color: transparent;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(225, 48, 108, 0.35);
+}
+
+.shareNativeBtn {
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.35);
+  color: #0369a1;
+}
+
+:global([data-theme="dark"]) .shareNativeBtn {
+  background: rgba(14, 165, 233, 0.16);
+  border-color: rgba(14, 165, 233, 0.45);
+  color: #38bdf8;
+}
+
+.shareNativeBtn:hover {
+  background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+  border-color: transparent;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+}
+
+.downloadAndCopyRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 75px;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  max-width: 530px;
+  margin-top: 2px;
+}
+
+@media (max-width: 480px) {
+  .downloadAndCopyRow {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+}
+
+.downloadPhotoBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid transparent;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  font-family: var(--font-heading);
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.2);
+  white-space: nowrap;
+}
+
+:global([data-theme="dark"]) .downloadPhotoBtn {
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  box-shadow: 0 3px 14px rgba(14, 165, 233, 0.35);
+}
+
+.downloadPhotoBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(14, 165, 233, 0.4);
+}
+
+.downloadPhotoBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.copyPhotoBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+:global([data-theme="light"]) .copyPhotoBtn {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #0f172a;
+}
+
+.copyPhotoBtn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.copyPhotoBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.photoShareNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: rgba(14, 165, 233, 0.09);
+  border: 1px dashed rgba(14, 165, 233, 0.38);
+  color: #0369a1;
+  font-size: 0.74rem;
+  font-weight: 700;
+  margin-top: 14px;
+  line-height: 1.4;
+}
+
+:global([data-theme="dark"]) .photoShareNotice {
+  background: rgba(14, 165, 233, 0.12);
+  color: #38bdf8;
+  border-color: rgba(14, 165, 233, 0.35);
 }
 
 /* =================== RESPONSIVE BREAKPOINTS =================== */
@@ -1716,13 +2470,324 @@
     align-items: flex-start;
     gap: 10px;
   }
+}
 
-  .templateBar {
-    width: 100%;
-  }
+/* ========================================================
+   LIGHT MODE HIGH CONTRAST & VISIBILITY ENHANCEMENTS
+   ======================================================== */
+:global([data-theme="light"]) .boardingPass {
+  background-color: #ffffff;
+  border: 2px solid #cbd5e1;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
+}
 
-  .templateChips {
-    width: 100%;
-    overflow-x: auto;
-  }
+:global([data-theme="light"]) .ticketHeader {
+  border-bottom: 2px solid #e2e8f0;
+}
+
+:global([data-theme="light"]) .carrierName {
+  color: #020617 !important;
+  font-weight: 950 !important;
+  font-size: 1.15rem !important;
+}
+
+:global([data-theme="light"]) .airlineLogoWrap {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+:global([data-theme="light"]) .flightCodeBadge {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  font-weight: 950 !important;
+  font-size: 0.92rem !important;
+  border: 1.5px solid #0284c7 !important;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35) !important;
+}
+
+:global([data-theme="light"]) .saveFlightBtn {
+  background: #f8fafc !important;
+  border: 2px solid #64748b !important;
+  color: #0f172a !important;
+  font-weight: 900 !important;
+  font-size: 0.82rem !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1) !important;
+}
+
+:global([data-theme="light"]) .saveFlightBtn svg {
+  stroke: #0f172a !important;
+  stroke-width: 2.8 !important;
+}
+
+:global([data-theme="light"]) .saveFlightBtn:hover {
+  background: #e2e8f0 !important;
+  color: #0284c7 !important;
+  border-color: #0284c7 !important;
+}
+
+:global([data-theme="light"]) .saveFlightBtn:hover svg {
+  stroke: #0284c7 !important;
+}
+
+:global([data-theme="light"]) .shareFlightBtn {
+  background: #0284c7 !important;
+  border: 2px solid #0369a1 !important;
+  color: #ffffff !important;
+  font-weight: 950 !important;
+  font-size: 0.84rem !important;
+  box-shadow: 0 3px 10px rgba(2, 132, 199, 0.4) !important;
+}
+
+:global([data-theme="light"]) .shareFlightBtn svg {
+  stroke: #ffffff !important;
+  stroke-width: 2.8 !important;
+}
+
+:global([data-theme="light"]) .shareFlightBtn:hover {
+  background: #0369a1 !important;
+  border-color: #0c4a6e !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+:global([data-theme="light"]) .countdownBadge {
+  background: #e0f2fe !important;
+  border: 2px solid #0284c7 !important;
+  color: #0369a1 !important;
+  font-weight: 950 !important;
+  font-size: 0.82rem !important;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.15) !important;
+}
+
+:global([data-theme="light"]) .countdownActive {
+  background: #dcfce7 !important;
+  border: 2px solid #16a34a !important;
+  color: #15803d !important;
+}
+
+:global([data-theme="light"]) .countdownLanded {
+  background: #f1f5f9 !important;
+  border: 2px solid #94a3b8 !important;
+  color: #1e293b !important;
+}
+
+:global([data-theme="light"]) .statusBadge {
+  background: #0f172a !important;
+  border: 2px solid #0f172a !important;
+  color: #ffffff !important;
+  font-weight: 950 !important;
+  font-size: 0.82rem !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12) !important;
+}
+
+:global([data-theme="light"]) .statusActive {
+  background: #15803d !important;
+  border: 2px solid #16a34a !important;
+  color: #ffffff !important;
+}
+
+:global([data-theme="light"]) .statusLanded {
+  background: #f1f5f9 !important;
+  border: 2px solid #94a3b8 !important;
+  color: #1e293b !important;
+}
+
+:global([data-theme="light"]) .hubStageLabel {
+  color: #0369a1 !important;
+  font-weight: 950 !important;
+  font-size: 0.85rem !important;
+  letter-spacing: 0.12em !important;
+}
+
+:global([data-theme="light"]) .landmarkMiniTag {
+  color: #1e40af !important;
+  background: #dbeafe !important;
+  border: 1.5px solid #2563eb !important;
+  padding: 3px 10px !important;
+  border-radius: 9999px !important;
+  font-weight: 900 !important;
+  font-size: 0.78rem !important;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+:global([data-theme="light"]) .hubIata {
+  color: #020617 !important;
+  font-weight: 950 !important;
+  font-size: 2.6rem !important;
+  letter-spacing: -0.02em !important;
+}
+
+:global([data-theme="light"]) .hubCity {
+  color: #0f172a !important;
+  font-weight: 900 !important;
+  font-size: 1.05rem !important;
+}
+
+:global([data-theme="light"]) .hubTimeVal {
+  color: #020617 !important;
+  font-weight: 950 !important;
+  font-size: 1.25rem !important;
+}
+
+:global([data-theme="light"]) .hubTimeDate {
+  color: #020617 !important;
+  background: #cbd5e1 !important;
+  border: 1.5px solid #94a3b8 !important;
+  font-weight: 900 !important;
+  font-size: 0.82rem !important;
+}
+
+:global([data-theme="light"]) .hubFacilityPill {
+  background: #f1f5f9 !important;
+  border: 1.5px solid #94a3b8 !important;
+  color: #0f172a !important;
+  font-weight: 900 !important;
+  font-size: 0.78rem !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1) !important;
+}
+
+:global([data-theme="light"]) .hubDurationBadge {
+  background: #f1f5f9 !important;
+  border: 1.5px solid #94a3b8 !important;
+  color: #0f172a !important;
+  font-weight: 900 !important;
+  font-size: 0.85rem !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1) !important;
+}
+
+:global([data-theme="light"]) .hubStatusPill {
+  background: #e0f2fe !important;
+  border: 1.5px solid #0284c7 !important;
+  color: #0284c7 !important;
+  font-weight: 950 !important;
+  font-size: 0.82rem !important;
+}
+
+:global([data-theme="light"]) .ticketFooter {
+  border-top: 2px solid #e2e8f0 !important;
+}
+
+:global([data-theme="light"]) .specLabel {
+  color: #475569 !important;
+  font-weight: 800 !important;
+  font-size: 0.65rem !important;
+  letter-spacing: 0.08em !important;
+}
+
+:global([data-theme="light"]) .specValue {
+  color: #0f172a !important;
+  font-weight: 900 !important;
+  font-size: 0.88rem !important;
+}
+
+:global([data-theme="light"]) .specValueAccent {
+  color: #0284c7 !important;
+  font-weight: 900 !important;
+  font-size: 0.88rem !important;
+}
+
+:global([data-theme="light"]) .specDivider {
+  background: #cbd5e1 !important;
+}
+
+:global([data-theme="light"]) .inspectHint {
+  background: #0284c7 !important;
+  border: 2px solid #0284c7 !important;
+  color: #ffffff !important;
+  font-weight: 950 !important;
+  font-size: 0.85rem !important;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35) !important;
+}
+
+:global([data-theme="light"]) .inspectHint:hover {
+  background: #0369a1 !important;
+  border-color: #0c4a6e !important;
+  color: #ffffff !important;
+}
+
+/* Light mode Stub - Solid clean white ticket paper with razor sharp contrast */
+:global([data-theme="light"]) .ticketStub {
+  background: #ffffff !important;
+  border-left: none !important;
+}
+
+:global([data-theme="light"]) .stubTitle {
+  color: #334155 !important;
+  font-weight: 950 !important;
+  font-size: 0.82rem !important;
+  letter-spacing: 0.12em !important;
+}
+
+:global([data-theme="light"]) .stubFlightNo {
+  color: #0284c7 !important;
+  font-weight: 950 !important;
+  font-size: 1.15rem !important;
+}
+
+:global([data-theme="light"]) .stubStageLabel {
+  color: #334155 !important;
+  font-weight: 950 !important;
+  font-size: 0.74rem !important;
+}
+
+:global([data-theme="light"]) .stubIata {
+  color: #020617 !important;
+  font-weight: 950 !important;
+  font-size: 1.7rem !important;
+}
+
+:global([data-theme="light"]) .stubCity {
+  color: #0f172a !important;
+  font-weight: 850 !important;
+  font-size: 0.9rem !important;
+}
+
+:global([data-theme="light"]) .stubLabel {
+  color: #334155 !important;
+  font-weight: 950 !important;
+  font-size: 0.74rem !important;
+}
+
+:global([data-theme="light"]) .stubValue {
+  color: #020617 !important;
+  font-weight: 950 !important;
+  font-size: 1rem !important;
+}
+
+:global([data-theme="light"]) .stubRoute {
+  border-bottom: 2px dashed #cbd5e1 !important;
+}
+
+:global([data-theme="light"]) .scanBadge {
+  background: #e0f2fe !important;
+  border: 1.5px solid #0284c7 !important;
+  color: #0284c7 !important;
+  font-weight: 950 !important;
+  font-size: 0.74rem !important;
+}
+
+:global([data-theme="light"]) .qrScanHint {
+  color: #0284c7 !important;
+  font-weight: 950 !important;
+  font-size: 0.85rem !important;
+}
+
+:global([data-theme="light"]) .qrSvgHolder {
+  color: #020617 !important;
+}
+
+:global([data-theme="light"]) .qrSvgHolder svg path {
+  fill: #020617 !important;
+}
+
+:global([data-theme="light"]) .notchTop,
+:global([data-theme="light"]) .notchBottom {
+  background: #f8fafc;
+  border: 2px solid #cbd5e1;
+}
+
+:global([data-theme="light"]) .perforationLine {
+  border-right: 2px dashed #64748b;
 }

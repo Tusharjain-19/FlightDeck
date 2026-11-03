@@ -226,6 +226,27 @@
 
 .waypointLabel {
   transition: fill 0.2s ease;
+  user-select: none;
+}
+
+:global([data-theme="light"]) .waypointLabel {
+  fill: #1e293b !important;
+  font-weight: 800 !important;
+}
+
+:global([data-theme="light"]) .waypointLabelActive {
+  fill: #0284c7 !important;
+  font-weight: 900 !important;
+}
+
+:global([data-theme="dark"]) .waypointLabel {
+  fill: #cbd5e1 !important;
+  font-weight: 800 !important;
+}
+
+:global([data-theme="dark"]) .waypointLabelActive {
+  fill: #38bdf8 !important;
+  font-weight: 900 !important;
 }
 
 /* Speed Tag above Aircraft */
@@ -238,17 +259,19 @@
   backdrop-filter: blur(8px);
 }
 
-/* Airplane Animation & Levitation */
+/* Airplane Container & Moving Flight Plane */
+.flightPlaneGroup,
 .airplaneContainer {
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
-  transition: transform 0.2s ease-out;
-  animation: levitate 3s infinite ease-in-out;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
 }
 
-@keyframes levitate {
-  0% { transform: translate(0, 0); }
-  50% { transform: translate(0, -2px); }
-  100% { transform: translate(0, 0); }
+.phaseBadgeGroup {
+  pointer-events: none;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+
+.phaseBadgeBg {
+  backdrop-filter: blur(10px);
 }
 
 .engineFlare {
@@ -441,6 +464,38 @@
   border: 1px solid rgba(217, 119, 6, 0.3);
 }
 
+.corridorArc {
+  stroke-dasharray: 6 5;
+  animation: flowCorridor 20s linear infinite;
+}
+
+@keyframes flowCorridor {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -220;
+  }
+}
+
+.completedArc {
+  filter: drop-shadow(0 0 6px rgba(14, 165, 233, 0.6));
+}
+
+.activeBeaconDot {
+  transform-origin: center;
+  animation: beaconGlow 2s infinite ease-in-out;
+}
+
+@keyframes beaconGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(14, 165, 233, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 7px rgba(56, 189, 248, 0.9));
+  }
+}
+
 @media (max-width: 600px) {
   .header {
     flex-direction: column;
@@ -468,4 +523,30 @@
   .facilityBar {
     padding: 10px 14px;
   }
+}
+
+/* High Contrast Waypoint Labels on Monument Backgrounds */
+.waypointLabel {
+  fill: #1e293b !important;
+  font-weight: 800 !important;
+}
+
+:global([data-theme="light"]) .waypointLabel {
+  fill: #0f172a !important;
+  font-weight: 900 !important;
+}
+
+:global([data-theme="dark"]) .waypointLabel {
+  fill: #f1f5f9 !important;
+  font-weight: 900 !important;
+}
+
+.waypointLabelActive {
+  fill: #0284c7 !important;
+  font-weight: 900 !important;
+}
+
+:global([data-theme="dark"]) .waypointLabelActive {
+  fill: #38bdf8 !important;
+  font-weight: 900 !important;
 }

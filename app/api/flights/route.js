@@ -170,8 +170,10 @@ export async function GET(request) {
     let flightsList = [];
 
     if (type === 'route') {
-      const dep = searchParams.get('dep') || query;
-      const arr = searchParams.get('arr');
+      const rawDep = searchParams.get('dep') || query || '';
+      const rawArr = searchParams.get('arr') || '';
+      const dep = rawDep.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      const arr = rawArr.replace(/[^A-Z0-9]/gi, '').toUpperCase();
       
       const [response, liveRes] = await Promise.all([
         fetch(`https://airlabs.co/api/v9/schedules?dep_iata=${dep}&arr_iata=${arr}&api_key=${apiKey}`, { cache: 'no-store' })
@@ -188,26 +190,24 @@ export async function GET(request) {
       const raw = (response.response || []).filter(f => !f.cs_flight_iata);
       flightsList = raw.map(f => mapAirLabs({ ...f, search_type: 'departure' }, liveMap[f.flight_iata]));
     } else if (type === 'airport') {
+      const cleanAirport = (query || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
       const [depResponse, arrResponse, depLiveRes, arrLiveRes] = await Promise.all([
-        fetch(`https://airlabs.co/api/v9/schedules?dep_iata=${query}&api_key=${apiKey}`, { cache: 'no-store' })
+        fetch(`https://airlabs.co/api/v9/schedules?dep_iata=${cleanAirport}&api_key=${apiKey}`, { cache: 'no-store' })
           .then(res => res.json())
           .catch(() => ({ response: [] })),
-        fetch(`https://airlabs.co/api/v9/schedules?arr_iata=${query}&api_key=${apiKey}`, { cache: 'no-store' })
+        fetch(`https://airlabs.co/api/v9/schedules?arr_iata=${cleanAirport}&api_key=${apiKey}`, { cache: 'no-store' })
           .then(res => res.json())
           .catch(() => ({ response: [] })),
-        fetch(`https://airlabs.co/api/v9/flights?dep_iata=${query}&api_key=${apiKey}`, { cache: 'no-store' })
+        fetch(`https://airlabs.co/api/v9/flights?dep_iata=${cleanAirport}&api_key=${apiKey}`, { cache: 'no-store' })
           .then(res => res.json())
           .catch(() => ({ response: [] })),
-        fetch(`https://airlabs.co/api/v9/flights?arr_iata=${query}&api_key=${apiKey}`, { cache: 'no-store' })
+        fetch(`https://airlabs.co/api/v9/flights?arr_iata=${cleanAirport}&api_key=${apiKey}`, { cache: 'no-store' })
           .then(res => res.json())
           .catch(() => ({ response: [] }))
       ]);
 
       if (depResponse.error && arrResponse.error) {
-        return NextResponse.json(
-          { error: depResponse.error.message || 'AirLabs API error' },
-          { status: 400 }
-        );
+        return NextResponse.json({ data: [] });
       }
 
       const liveMap = {};
@@ -221,13 +221,57 @@ export async function GET(request) {
       const arrivals = arrRaw.map(f => mapAirLabs({ ...f, search_type: 'arrival' }, liveMap[f.flight_iata]));
       flightsList = [...departures, ...arrivals];
     } else if (type === 'flight') {
-      const cleanCallsign = query.replace(/\s+/g, '').toUpperCase();
-      
+      let rawQuery = (query || '').trim().toUpperCase();
+
+      // Normalize common airline name prefixes to standard 2-letter IATA codes
+      const airlinePrefixes = [
+        ['INDIGO', '6E'],
+        ['AIR INDIA EXPRESS', 'IX'],
+        ['AIR INDIA', 'AI'],
+        ['AIRINDIA', 'AI'],
+        ['VISTARA', 'UK'],
+        ['SPICEJET', 'SG'],
+        ['AKASA AIR', 'QP'],
+        ['AKASA', 'QP'],
+        ['EMIRATES', 'EK'],
+        ['ETIHAD', 'EY'],
+        ['QATAR AIRWAYS', 'QR'],
+        ['QATAR', 'QR'],
+        ['BRITISH AIRWAYS', 'BA'],
+        ['LUFTHANSA', 'LH']
+      ];
+
+      for (const [name, code] of airlinePrefixes) {
+        if (rawQuery.startsWith(name)) {
+          rawQuery = code + rawQuery.slice(name.length).trim();
+          break;
+        }
+      }
+
+      // Strip all whitespace, hyphens, and non-alphanumeric characters
+      const cleanCallsign = rawQuery.replace(/[^A-Z0-9]/g, '');
+
+      // Determine appropriate AirLabs query parameters
+      const isIcao = /^[A-Z]{3}[0-9]{1,4}[A-Z]?$/.test(cleanCallsign);
+      const isIata = /^[A-Z0-9]{2}[0-9]{1,4}[A-Z]?$/.test(cleanCallsign);
+      const isNumberOnly = /^[0-9]{1,4}$/.test(cleanCallsign);
+
+      let scheduleUrl = `https://airlabs.co/api/v9/schedules?flight_iata=${cleanCallsign}&api_key=${apiKey}`;
+      let flightUrl = `https://airlabs.co/api/v9/flights?flight_iata=${cleanCallsign}&api_key=${apiKey}`;
+
+      if (isIcao) {
+        scheduleUrl = `https://airlabs.co/api/v9/schedules?flight_icao=${cleanCallsign}&api_key=${apiKey}`;
+        flightUrl = `https://airlabs.co/api/v9/flights?flight_icao=${cleanCallsign}&api_key=${apiKey}`;
+      } else if (isNumberOnly) {
+        scheduleUrl = `https://airlabs.co/api/v9/schedules?flight_number=${cleanCallsign}&api_key=${apiKey}`;
+        flightUrl = `https://airlabs.co/api/v9/flights?flight_number=${cleanCallsign}&api_key=${apiKey}`;
+      }
+
       const [response, liveRes, adsbRes] = await Promise.all([
-        fetch(`https://airlabs.co/api/v9/schedules?flight_iata=${query}&api_key=${apiKey}`, { cache: 'no-store' })
+        fetch(scheduleUrl, { cache: 'no-store' })
           .then(res => res.json())
           .catch(() => ({ response: [] })),
-        fetch(`https://airlabs.co/api/v9/flights?flight_iata=${query}&api_key=${apiKey}`, { cache: 'no-store' })
+        fetch(flightUrl, { cache: 'no-store' })
           .then(res => res.json())
           .catch(() => ({ response: [] })),
         fetch(`${process.env.ADSBLOL_API_URL || 'https://api.adsb.lol/v2'}/callsign/${cleanCallsign}`, {
@@ -240,7 +284,10 @@ export async function GET(request) {
       const data = response;
 
       const liveMap = {};
-      (liveRes.response || []).forEach(f => { if (f.flight_iata) liveMap[f.flight_iata] = f; });
+      (liveRes.response || []).forEach(f => {
+        if (f.flight_iata) liveMap[f.flight_iata] = f;
+        if (f.flight_icao) liveMap[f.flight_icao] = f;
+      });
 
       // If adsb.lol has live transponder data, enhance or populate
       const adsbAc = (adsbRes.ac || []).find(a => a.lat && a.lon);
@@ -307,10 +354,7 @@ export async function GET(request) {
           }
         }];
       } else if (data.error) {
-        return NextResponse.json(
-          { error: data.error.message || 'AirLabs API error' },
-          { status: 400 }
-        );
+        return NextResponse.json({ data: [] });
       }
     }
 

@@ -189,10 +189,10 @@ export default function SearchInterface() {
       const res = await fetch(url);
       const data = await res.json();
 
-      // Ensure at least 1.2s for the cinematic mechanical split-flap flip to shine
+      // Ensure 2-3 seconds minimum duration for the cinematic mechanical split-flap flip
       const elapsed = Date.now() - fetchStart;
-      if (elapsed < 1200) {
-        await new Promise(r => setTimeout(r, 1200 - elapsed));
+      if (elapsed < 2400) {
+        await new Promise(r => setTimeout(r, 2400 - elapsed));
       }
 
       if (!res.ok) {

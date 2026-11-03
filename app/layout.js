@@ -47,7 +47,7 @@ export default function RootLayout({ children }) {
                     Radar
                   </Link>
                   <Link href="/airports" className="nav-link">
-                    Airports <span className="nav-count">144</span>
+                    Airports
                   </Link>
                   <Link href="/airlines" className="nav-link">
                     Fleet

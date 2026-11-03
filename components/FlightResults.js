@@ -8,7 +8,10 @@ import { getAirlineInfo } from '../data/airlines';
 import { iconicDestinations, getAirportPhoto, getAirportLandmarkName } from '../data/destinations';
 import { indianPublicAirports } from '../data/airports';
 import { useSettings } from '../lib/settingsContext';
+import { useTheme } from './ThemeProvider';
 import { generateQRCodeSVG } from '../lib/qrcode';
+import { generateBoardingPassImage } from '../lib/boardingPassCanvas';
+import { getFlightPhase } from '../lib/flightPhase';
 import styles from './FlightResults.module.css';
 
 // Build fast city lookup for all 144 Indian public commercial airports
@@ -228,14 +231,6 @@ function getCountdownInfo(flight, now) {
   return null;
 }
 
-function getSimulatedSeat(flightIata) {
-  if (!flightIata) return '12A';
-  const num = parseInt(flightIata.replace(/\D/g, '') || '12', 10);
-  const rows = (num % 28) + 1;
-  const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-  const seatLetter = letters[num % letters.length];
-  return `${rows.toString().padStart(2, '0')}${seatLetter}`;
-}
 
 function getBoardingTime(scheduledTimeStr) {
   if (!scheduledTimeStr) return '--:--';
@@ -252,6 +247,7 @@ function getBoardingTime(scheduledTimeStr) {
 
 export default function FlightResults({ flights, loading, error, serverNow, searchContext }) {
   const { settings, convertSpeed, convertAltitude } = useSettings();
+  const { theme } = useTheme();
   const hasDepartures = flights?.some(f => f.search_type === 'departure');
   const hasArrivals = flights?.some(f => f.search_type === 'arrival');
   const isAirportSearch = hasDepartures || hasArrivals;
@@ -261,17 +257,15 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
   const [expandedCardIndex, setExpandedCardIndex] = useState(null);
   const [savedFlightCodes, setSavedFlightCodes] = useState([]);
 
-  // Card Template Selector: 'scenic' | 'executive' | 'radar' | 'classic'
-  const [cardTemplate, setCardTemplate] = useState('scenic');
-
-  // Stub code display view: 'qr' | 'barcode' (per flight code)
-  const [stubViewMap, setStubViewMap] = useState({});
-
-  // Digital Boarding Pass & QR Scanner Modal
+  // Digital Boarding Pass & Share Modal
   const [activeScanFlight, setActiveScanFlight] = useState(null);
+  const [modalActiveTab, setModalActiveTab] = useState('photo'); // Default to 'photo' card preview
+  const [passPreviewUrl, setPassPreviewUrl] = useState(null);
   const [isSimulatingScan, setIsSimulatingScan] = useState(false);
   const [scanVerified, setScanVerified] = useState(false);
   const [copyToast, setCopyToast] = useState(false);
+  const [shareToastText, setShareToastText] = useState('');
+  const [isGeneratingPhoto, setIsGeneratingPhoto] = useState(false);
 
   useEffect(() => {
     const loadSaved = () => {
@@ -342,19 +336,76 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
     return (hash % 15) + 18;
   };
 
-  const toggleStubCodeView = (e, flightIata) => {
-    e.stopPropagation();
-    setStubViewMap(prev => ({
-      ...prev,
-      [flightIata]: prev[flightIata] === 'barcode' ? 'qr' : 'barcode'
-    }));
+  // Theme-sync boarding pass preview whenever active flight or theme changes
+  useEffect(() => {
+    if (activeScanFlight) {
+      generatePassPreview(activeScanFlight);
+    }
+  }, [theme, activeScanFlight]);
+
+  const getPassParams = (flight, shouldDownload = false) => {
+    const flightIata = flight.flight?.iata || flight.flight?.icao || 'FLIGHT';
+    const depIata = flight.departure?.iata || '';
+    const arrIata = flight.arrival?.iata || '';
+    const depCity = getCityName(depIata, flight.departure?.airport) || depIata;
+    const arrCity = getCityName(arrIata, flight.arrival?.airport) || arrIata;
+    const depPhotoUrl = getAirportPhoto(depIata, '/destinations/mumbai_gateway.jpg');
+    const arrPhotoUrl = getAirportPhoto(arrIata, '/destinations/delhi_india_gate.jpg');
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://flightdeck.app';
+    const url = `${origin}/?flight=${flightIata}&from=${depIata}&to=${arrIata}`;
+    const airline = getAirlineInfo(flight.airline?.iata || flight.flight?.iata || flight.flight?.icao);
+    const flightPhase = getFlightPhase(flight);
+
+    const rawGate = flight.departure?.gate;
+    const rawTerm = flight.departure?.terminal;
+    const gateStr = rawGate ? (rawGate.toLowerCase().startsWith('gate') ? rawGate : `Gate ${rawGate}`) : 'Assigned at Gate';
+    const termStr = rawTerm ? (rawTerm.toLowerCase().startsWith('term') ? rawTerm : `Terminal ${rawTerm}`) : 'Main Terminal';
+
+    return {
+      flightIata,
+      airlineName: airline?.name || flight.airline?.name || 'Commercial Airline',
+      airlineLogoUrl: airline?.logo || '',
+      depIata,
+      arrIata,
+      depCity,
+      arrCity,
+      depPhotoUrl,
+      arrPhotoUrl,
+      depTime: formatTime(flight.departure?.scheduled),
+      arrTime: formatTime(flight.arrival?.scheduled),
+      flightDate: formatDate(flight.departure?.scheduled) || 'Today',
+      duration: getFlightDuration(flight.departure?.scheduled, flight.arrival?.scheduled),
+      gate: gateStr,
+      terminal: termStr,
+      flightStatus: flight.flight_status ? flight.flight_status.toUpperCase() : 'SCHEDULED',
+      flightPhase,
+      qrUrl: url,
+      theme: theme || 'light',
+      download: shouldDownload
+    };
   };
 
-  const openScanModal = (e, flight) => {
-    e.stopPropagation();
+  const generatePassPreview = async (flight) => {
+    if (!flight) return;
+    try {
+      const passData = await generateBoardingPassImage(getPassParams(flight, false));
+      if (passData?.dataUrl) {
+        setPassPreviewUrl(passData.dataUrl);
+      }
+    } catch (e) {
+      console.error('Failed to pre-generate boarding pass preview:', e);
+    }
+  };
+
+  const handleOpenShareModal = (flight) => {
     setActiveScanFlight(flight);
     setScanVerified(false);
     setIsSimulatingScan(false);
+    setCopyToast(false);
+    setShareToastText('');
+    setModalActiveTab('photo');
+    setPassPreviewUrl(null);
+    generatePassPreview(flight);
   };
 
   const handleSimulateScan = () => {
@@ -373,6 +424,200 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
       setCopyToast(true);
       setTimeout(() => setCopyToast(false), 2600);
     });
+  };
+
+  const triggerFileDownload = (dataUrl, fileName) => {
+    if (typeof document === 'undefined') return;
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleShareWhatsapp = async (flight) => {
+    try {
+      setIsGeneratingPhoto(true);
+      setShareToastText('Generating Boarding Pass photo for WhatsApp...');
+      
+      const passParams = getPassParams(flight, false);
+      const passData = await generateBoardingPassImage(passParams);
+
+      const text = `Track Flight ${passParams.flightIata} (${passParams.depCity} -> ${passParams.arrCity}) live on FlightDeck Radar:\n${passParams.qrUrl}\n\nLive Boarding Pass with verified ADS-B telemetry`;
+
+      if (navigator.canShare && passData?.file && navigator.canShare({ files: [passData.file] })) {
+        await navigator.share({
+          title: `FlightDeck: ${passParams.flightIata} Boarding Pass`,
+          text: text,
+          files: [passData.file]
+        });
+        setShareToastText('Boarding Pass photo shared to WhatsApp.');
+      } else {
+        let copiedImage = false;
+        if (passData?.blob && typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': passData.blob })
+            ]);
+            copiedImage = true;
+          } catch (e) {
+            copiedImage = false;
+          }
+        }
+
+        if (passData?.dataUrl) {
+          triggerFileDownload(passData.dataUrl, passData.fileName);
+        }
+
+        if (copiedImage) {
+          setShareToastText('Photo Pass copied & downloaded. WhatsApp Web opened - press Ctrl+V to attach photo.');
+        } else {
+          setShareToastText('Boarding Pass photo downloaded. Opening WhatsApp Web...');
+        }
+
+        setTimeout(() => {
+          window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+        }, 700);
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        console.error(e);
+      }
+    } finally {
+      setIsGeneratingPhoto(false);
+      setTimeout(() => setShareToastText(''), 5500);
+    }
+  };
+
+  const handleShareInstagram = async (flight) => {
+    try {
+      setIsGeneratingPhoto(true);
+      setShareToastText('Generating Boarding Pass photo for Instagram...');
+
+      const passParams = getPassParams(flight, false);
+      const passData = await generateBoardingPassImage(passParams);
+
+      if (navigator.canShare && passData?.file && navigator.canShare({ files: [passData.file] })) {
+        await navigator.share({
+          title: `FlightDeck: ${passParams.flightIata} Boarding Pass`,
+          text: `Flight ${passParams.flightIata} (${passParams.depCity} -> ${passParams.arrCity}) • Live on FlightDeck Radar ${passParams.qrUrl}`,
+          files: [passData.file]
+        });
+        setShareToastText('Boarding Pass photo shared.');
+      } else {
+        if (passData?.blob && typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': passData.blob })
+            ]);
+          } catch (e) {}
+        }
+        if (passData?.dataUrl) {
+          triggerFileDownload(passData.dataUrl, passData.fileName);
+        }
+        setShareToastText('Boarding Pass photo saved & copied to clipboard. Paste directly into Instagram.');
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        console.error(e);
+      }
+    } finally {
+      setIsGeneratingPhoto(false);
+      setTimeout(() => setShareToastText(''), 4500);
+    }
+  };
+
+  const handleShareNative = async (flight) => {
+    try {
+      setIsGeneratingPhoto(true);
+      setShareToastText('Preparing boarding pass photo for sharing...');
+
+      const passParams = getPassParams(flight, false);
+      const passData = await generateBoardingPassImage(passParams);
+
+      const shareText = `Track Flight ${passParams.flightIata} (${passParams.depCity} -> ${passParams.arrCity}) live on FlightDeck Radar: ${passParams.qrUrl}\nScannable Boarding Pass with live ADS-B telemetry`;
+
+      if (navigator.canShare && passData?.file && navigator.canShare({ files: [passData.file] })) {
+        await navigator.share({
+          title: `FlightDeck: ${passParams.flightIata} Boarding Pass`,
+          text: shareText,
+          files: [passData.file]
+        });
+        setShareToastText('Boarding Pass photo shared successfully.');
+      } else if (navigator.share) {
+        await navigator.share({
+          title: `FlightDeck: ${passParams.flightIata} Boarding Pass`,
+          text: shareText,
+          url: passParams.qrUrl
+        });
+        if (passData?.dataUrl) {
+          triggerFileDownload(passData.dataUrl, passData.fileName);
+        }
+        setShareToastText('Link shared & Boarding Pass photo saved.');
+      } else {
+        if (passData?.blob && typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': passData.blob })
+            ]);
+            setShareToastText('Boarding Pass photo copied to clipboard & downloaded.');
+          } catch (e) {
+            setShareToastText('Boarding Pass photo downloaded.');
+          }
+        } else {
+          setShareToastText('Boarding Pass photo downloaded.');
+        }
+        if (passData?.dataUrl) {
+          triggerFileDownload(passData.dataUrl, passData.fileName);
+        }
+        handleCopyShareLink(passParams.flightIata, passParams.depIata, passParams.arrIata);
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Share error:', err);
+      }
+    } finally {
+      setIsGeneratingPhoto(false);
+      setTimeout(() => setShareToastText(''), 4500);
+    }
+  };
+
+  const handleDownloadBoardingPassPhoto = async (flight) => {
+    setIsGeneratingPhoto(true);
+    try {
+      await generateBoardingPassImage(getPassParams(flight, true));
+      setShareToastText('Boarding Pass PNG photo downloaded.');
+      setTimeout(() => setShareToastText(''), 3000);
+    } catch (e) {
+      console.error('Error generating boarding pass image:', e);
+    } finally {
+      setIsGeneratingPhoto(false);
+    }
+  };
+
+  const handleCopyPhotoToClipboard = async (flight) => {
+    setIsGeneratingPhoto(true);
+    setShareToastText('Rendering & copying Boarding Pass photo...');
+    try {
+      const passData = await generateBoardingPassImage(getPassParams(flight, false));
+
+      if (passData?.blob && typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': passData.blob })
+        ]);
+        setShareToastText('Photo Pass copied to clipboard. Paste directly into chats (Ctrl+V).');
+      } else if (passData?.dataUrl) {
+        triggerFileDownload(passData.dataUrl, passData.fileName);
+        setShareToastText('Boarding Pass photo saved to downloads.');
+      }
+    } catch (e) {
+      console.error('Error copying boarding pass photo:', e);
+      setShareToastText('Unable to copy photo directly. Please use Download button.');
+    } finally {
+      setIsGeneratingPhoto(false);
+      setTimeout(() => setShareToastText(''), 4500);
+    }
   };
 
   if (loading) {
@@ -552,54 +797,16 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
         </>
       )}
 
-      {/* Top Header & Card Template Switcher */}
+      {/* Top Header & Live Telemetry Indicator */}
       <div className={styles.topControlRow}>
         <div className={styles.resultsHeader}>
           <span className={styles.resultCount}>
             {sortedFlights.length} {isAirportSearch ? activeSubTab : ''} flight{sortedFlights.length !== 1 ? 's' : ''} available
           </span>
-        </div>
-
-        {/* Card Style Template Switcher */}
-        <div className={styles.templateBar}>
-          <span className={styles.templateLabel}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-            CARD TEMPLATE:
+          <span className={styles.liveRadarBadge}>
+            <span className={styles.liveRadarDot}></span>
+            LIVE AIRSPACE RADAR
           </span>
-          <div className={styles.templateChips}>
-            <button
-              type="button"
-              className={`${styles.templateChip} ${cardTemplate === 'scenic' ? styles.activeTemplateChip : ''}`}
-              onClick={() => setCardTemplate('scenic')}
-              title="Dual Destination Photographic Landmark Backdrop"
-            >
-              🏛️ Scenic Dual-Place
-            </button>
-            <button
-              type="button"
-              className={`${styles.templateChip} ${cardTemplate === 'executive' ? styles.activeTemplateChip : ''}`}
-              onClick={() => setCardTemplate('executive')}
-              title="Authentic Airline Fleet Livery Theme"
-            >
-              ✈️ Executive Livery
-            </button>
-            <button
-              type="button"
-              className={`${styles.templateChip} ${cardTemplate === 'radar' ? styles.activeTemplateChip : ''}`}
-              onClick={() => setCardTemplate('radar')}
-              title="Cyberpunk Pitch-Black Radar HUD"
-            >
-              📡 Cyberpunk Radar
-            </button>
-            <button
-              type="button"
-              className={`${styles.templateChip} ${cardTemplate === 'classic' ? styles.activeTemplateChip : ''}`}
-              onClick={() => setCardTemplate('classic')}
-              title="Classic Airline Boarding Pass"
-            >
-              🎫 Classic Pass
-            </button>
-          </div>
         </div>
       </div>
 
@@ -628,21 +835,39 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
           const depCity = getCityName(depIata, flight.departure?.airport) || depIata;
           const arrCity = getCityName(arrIata, flight.arrival?.airport) || arrIata;
           const isSaved = savedFlightCodes.includes(flightIata);
-
-          // Code display type: 'qr' or 'barcode'
-          const stubCodeView = stubViewMap[flightIata] || 'qr';
+          const flightPhase = getFlightPhase(flight);
 
           // Generate Real Working Scannable QR Code SVG
           const origin = typeof window !== 'undefined' ? window.location.origin : 'https://flightdeck.app';
           const flightUrl = `${origin}/?flight=${flightIata}&from=${depIata}&to=${arrIata}`;
-          const qrCodeObj = generateQRCodeSVG(flightUrl, 78, 'currentColor');
+          const qrCodeObj = generateQRCodeSVG(flightUrl, 84, 'currentColor');
 
           return (
             <div 
               key={i} 
-              className={`${styles.boardingPass} ${styles.cardFadeIn} ${isDelayedMajor ? styles.passDelayed : ''} ${isExpanded ? styles.passExpanded : ''} ${styles[`template_${cardTemplate}`] || ''}`} 
+              className={`${styles.boardingPass} ${styles.cardFadeIn} ${isDelayedMajor ? styles.passDelayed : ''} ${isExpanded ? styles.passExpanded : ''}`} 
               style={{ animationDelay: `${i * 60}ms` }}
             >
+              {/* AUTHENTIC INDIAN DESTINATION PHOTOGRAPHIC BACKDROP (Departure + Arrival) */}
+              {settings?.showLandmarkWatermark !== false && (
+                <div className={styles.fullCardBackgroundWrap} aria-hidden="true">
+                  {/* Left side: Departure Landmark Image */}
+                  <div 
+                    className={styles.depCardBackgroundImage} 
+                    style={{ backgroundImage: `url(${depPhotoUrl})` }}
+                    title={`Departure Landmark: ${depLandmark || depCity}`}
+                  />
+                  {/* Right side: Arrival Landmark Image */}
+                  <div 
+                    className={styles.arrCardBackgroundImage} 
+                    style={{ backgroundImage: `url(${arrPhotoUrl})` }}
+                    title={`Arrival Landmark: ${arrLandmark || arrCity}`}
+                  />
+                  {/* Ambient Frosted Scrim Overlay */}
+                  <div className={styles.fullCardBackgroundOverlay} />
+                </div>
+              )}
+
               {/* BOARDING PASS SURFACE: Left Main Pass + Perforation + Right Stub */}
               <div 
                 className={styles.passSurface}
@@ -657,29 +882,9 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                   }
                 }}
               >
-                {/* DUAL DESTINATION ATMOSPHERIC BACKDROP (Departure + Arrival) */}
-                {cardTemplate === 'scenic' && settings?.showLandmarkWatermark !== false && (
-                  <div className={styles.fullCardBackgroundWrap} aria-hidden="true">
-                    {/* Left side: Departure Landmark Image */}
-                    <div 
-                      className={styles.depCardBackgroundImage} 
-                      style={{ backgroundImage: `url(${depPhotoUrl})` }}
-                      title={`Departure Landmark: ${depLandmark || depCity}`}
-                    />
-                    {/* Right side: Arrival Landmark Image */}
-                    <div 
-                      className={styles.arrCardBackgroundImage} 
-                      style={{ backgroundImage: `url(${arrPhotoUrl})` }}
-                      title={`Arrival Landmark: ${arrLandmark || arrCity}`}
-                    />
-                    {/* Ambient Frosted Scrim Overlay */}
-                    <div className={styles.fullCardBackgroundOverlay} />
-                  </div>
-                )}
-
                 {/* 1. LEFT MAIN TICKET BODY */}
                 <div className={styles.ticketMain}>
-                  {/* Top Airline & Pass Banner */}
+                  {/* Top Carrier & Flight Control Bar */}
                   <div className={styles.ticketHeader}>
                     <div className={styles.carrierInfo}>
                       {airline.logo ? (
@@ -688,7 +893,7 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                             src={airline.logo}
                             alt={airline.name}
                             width={110}
-                            height={30}
+                            height={28}
                             className={styles.airlineLogoImg}
                             style={{ objectFit: 'contain' }}
                           />
@@ -697,6 +902,8 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                         <span className={styles.carrierName}>{airline.name}</span>
                       )}
                       <span className={styles.flightCodeBadge}>{flightIata}</span>
+
+                      {/* Minimalist Pin & Share Actions (Zero Pill Box Clutter) */}
                       <button
                         type="button"
                         className={`${styles.saveFlightBtn} ${isSaved ? styles.savedActive : ''}`}
@@ -707,16 +914,37 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                         title={isSaved ? "Saved to Home screen" : "Pin flight to Home screen"}
                         aria-label={isSaved ? "Saved to Home screen" : "Pin flight to Home screen"}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill={isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill={isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16l-7-3.5L5 21V5z"/>
                         </svg>
                         <span>{isSaved ? "Pinned" : "Pin"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={styles.shareFlightBtn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenShareModal(flight);
+                        }}
+                        title="Share boarding pass & flight link"
+                        aria-label="Share flight"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="18" cy="5" r="3"/>
+                          <circle cx="6" cy="12" r="3"/>
+                          <circle cx="18" cy="19" r="3"/>
+                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                        </svg>
+                        <span>Share</span>
                       </button>
                     </div>
 
                     <div className={styles.ticketHeaderRight}>
                       {countdown && (
                         <span className={`${styles.countdownBadge} ${countdown.type === 'landed' ? styles.countdownLanded : (countdown.type === 'active' ? styles.countdownActive : '')}`}>
+                          <span className={styles.livePulseDot} />
                           {countdown.text}
                         </span>
                       )}
@@ -734,7 +962,6 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                       <div className={styles.hubInfo}>
                         <div className={styles.hubStageHeader}>
                           <span className={styles.hubStageLabel}>DEPARTURE</span>
-                          {depLandmark && <span className={styles.landmarkMiniTag} title={depLandmark}>📍 {depCity}</span>}
                         </div>
                         <div className={styles.hubIata}>{depIata}</div>
                         <div className={styles.hubCity} title={flight.departure?.airport || ''}>{depCity}</div>
@@ -743,8 +970,8 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                           <span className={styles.hubTimeDate}>{formatDate(flight.departure?.scheduled)}</span>
                         </div>
                         {(flight.departure?.terminal || flight.departure?.gate) && (
-                          <div className={styles.hubFacilityPill}>
-                            {flight.departure.terminal ? `T${flight.departure.terminal}` : ''}
+                          <div className={styles.hubFacilityText}>
+                            {flight.departure.terminal ? `Terminal ${flight.departure.terminal}` : ''}
                             {flight.departure.gate ? ` • Gate ${flight.departure.gate}` : ''}
                           </div>
                         )}
@@ -755,23 +982,29 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                     <div className={styles.routeHubCenter}>
                       <FlightTrajectory flight={flight} embedded={true} />
                       <div className={styles.hubRouteMeta}>
-                        <span className={styles.hubDurationBadge}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <span className={styles.hubDurationText}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                             <circle cx="12" cy="12" r="10"/>
                             <polyline points="12 6 12 12 16 14"/>
                           </svg>
                           {duration}
                         </span>
-                        <span className={styles.hubStatusPill}>
-                          {flight.flight_status === 'active' || flight.flight_status === 'en-route' ? (
+                        <span className={styles.hubMetaSeparator}>•</span>
+                        <span className={styles.hubRouteStatusText}>
+                          {flightPhase.id === 'taxi' ? (
                             <>
-                              <span className={styles.hubLiveDot}></span>
-                              <span>LIVE IN AIRWAY</span>
+                              <span className={styles.hubTaxiDot} />
+                              {flightPhase.label}
+                            </>
+                          ) : flight.flight_status === 'active' || flight.flight_status === 'en-route' ? (
+                            <>
+                              <span className={styles.hubLiveDot} />
+                              {flightPhase.label}
                             </>
                           ) : flight.flight_status === 'landed' ? (
-                            <span>ARRIVED & TAXIING</span>
+                            'TOUCHDOWN • ARRIVED'
                           ) : (
-                            <span>NON-STOP</span>
+                            flightPhase.label || 'NON-STOP'
                           )}
                         </span>
                       </div>
@@ -781,7 +1014,6 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                     <div className={styles.routeHubArr}>
                       <div className={styles.hubInfo} style={{ textAlign: 'right', alignItems: 'flex-end' }}>
                         <div className={styles.hubStageHeader} style={{ justifyContent: 'flex-end' }}>
-                          {arrLandmark && <span className={styles.landmarkMiniTag} title={arrLandmark}>📍 {arrCity}</span>}
                           <span className={styles.hubStageLabel}>ARRIVAL</span>
                         </div>
                         <div className={styles.hubIata}>{arrIata}</div>
@@ -791,8 +1023,8 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                           <span className={styles.hubTimeDate}>{formatDate(flight.arrival?.scheduled)}</span>
                         </div>
                         {(flight.arrival?.terminal || flight.arrival?.baggage) && (
-                          <div className={styles.hubFacilityPill} style={{ alignSelf: 'flex-end' }}>
-                            {flight.arrival.terminal ? `T${flight.arrival.terminal}` : ''}
+                          <div className={styles.hubFacilityText} style={{ textAlign: 'right' }}>
+                            {flight.arrival.terminal ? `Terminal ${flight.arrival.terminal}` : ''}
                             {flight.arrival.baggage ? ` • Belt ${flight.arrival.baggage}` : ''}
                           </div>
                         )}
@@ -800,38 +1032,36 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                     </div>
                   </div>
 
-                  {/* Ticket Bottom Metadata Chips */}
+                  {/* Clean Editorial Specs Row (Zero Pill Box Clutter, Hairline Dividers) */}
                   <div className={styles.ticketFooter}>
-                    <div className={styles.ticketMetaChips}>
-                      <span className={styles.metaChip}>
-                        <span className={styles.metaLabel}>DATE</span>
-                        <span className={styles.metaValue}>{formatDate(flight.departure?.scheduled) || 'Today'}</span>
-                      </span>
-
-                      {(flight.departure?.gate || flight.departure?.terminal) && (
-                        <span className={styles.metaChip}>
-                          <span className={styles.metaLabel}>GATE</span>
-                          <span className={styles.metaValue}>
-                            {flight.departure.gate ? `Gate ${flight.departure.gate}` : `Term ${flight.departure.terminal}`}
-                          </span>
+                    <div className={styles.specsRow}>
+                      <div className={styles.specItem}>
+                        <span className={styles.specLabel}>DATE</span>
+                        <span className={styles.specValue}>{formatDate(flight.departure?.scheduled) || 'Today'}</span>
+                      </div>
+                      <div className={styles.specDivider} />
+                      <div className={styles.specItem}>
+                        <span className={styles.specLabel}>TERMINAL</span>
+                        <span className={styles.specValue}>
+                          {flight.departure?.terminal ? `Terminal ${flight.departure.terminal}` : 'Main'}
                         </span>
-                      )}
-
-                      {flight.arrival?.baggage && (
-                        <span className={styles.metaChip}>
-                          <span className={styles.metaLabel}>BAGGAGE</span>
-                          <span className={styles.metaValue}>Belt {flight.arrival.baggage}</span>
+                      </div>
+                      <div className={styles.specDivider} />
+                      <div className={styles.specItem}>
+                        <span className={styles.specLabel}>GATE</span>
+                        <span className={styles.specValue}>
+                          {flight.departure?.gate ? `Gate ${flight.departure.gate}` : (flight.departure?.terminal ? `T${flight.departure.terminal}` : 'Assigned')}
                         </span>
-                      )}
-
-                      <span className={styles.metaChip}>
-                        <span className={styles.metaLabel}>SEAT</span>
-                        <span className={styles.metaValue}>{getSimulatedSeat(flightIata)}</span>
-                      </span>
+                      </div>
+                      <div className={styles.specDivider} />
+                      <div className={styles.specItem}>
+                        <span className={styles.specLabel}>DURATION</span>
+                        <span className={styles.specValue}>{duration}</span>
+                      </div>
                     </div>
 
                     <div className={styles.inspectHint}>
-                      <span>{isExpanded ? 'Hide Full Specs' : 'Inspect Radar & Weather'}</span>
+                      <span>{isExpanded ? 'Hide Specs' : 'Inspect Radar'}</span>
                       <svg 
                         xmlns="http://www.w3.org/2000/svg" 
                         width="12" 
@@ -855,7 +1085,7 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                   <div className={styles.notchBottom} />
                 </div>
 
-                {/* 3. RIGHT TEAR-OFF STUB WITH WORKING SCANNABLE QR CODE & BARCODE */}
+                {/* 3. RIGHT TEAR-OFF STUB WITH WORKING SCANNABLE QR CODE */}
                 <div className={styles.ticketStub}>
                   <div className={styles.stubHeader}>
                     <span className={styles.stubTitle}>FLIGHT STUB</span>
@@ -890,108 +1120,46 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
 
                     <div className={styles.stubField}>
                       <span className={styles.stubLabel}>GATE</span>
-                      <strong className={styles.stubValue}>{flight.departure?.gate || flight.departure?.terminal || 'TBD'}</strong>
+                      <strong className={styles.stubValue}>{flight.departure?.gate ? `Gate ${flight.departure.gate}` : (flight.departure?.terminal ? `Term ${flight.departure.terminal}` : 'TBD')}</strong>
                     </div>
 
                     <div className={styles.stubField}>
-                      <span className={styles.stubLabel}>SEAT</span>
-                      <strong className={styles.stubValue}>{getSimulatedSeat(flightIata)}</strong>
+                      <span className={styles.stubLabel}>DURATION</span>
+                      <strong className={styles.stubValue}>{duration}</strong>
                     </div>
 
                     <div className={styles.stubField}>
-                      <span className={styles.stubLabel}>GROUP</span>
-                      <strong className={styles.stubValue}>ZONE 1</strong>
+                      <span className={styles.stubLabel}>AIRWAY</span>
+                      <strong className={styles.stubValue}>{flight.flight_status ? flight.flight_status.toUpperCase() : 'SCHEDULED'}</strong>
                     </div>
                   </div>
 
-                  {/* INTERACTIVE WORKING QR CODE / BARCODE SECTION */}
+                  {/* SEAMLESS WORKING SCANNABLE QR CODE ON TICKET PAPER */}
                   <div 
                     className={styles.stubCodeBox}
-                    onClick={(e) => openScanModal(e, flight)}
-                    title="Click to Scan QR / Inspect Digital Boarding Pass"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenShareModal(flight);
+                    }}
+                    title="Click to Scan or Share Digital Boarding Pass"
                     role="button"
                     tabIndex={0}
                   >
                     <div className={styles.codeSwitchHeader}>
-                      <div className={styles.codeTypeToggle}>
-                        <button
-                          type="button"
-                          className={`${styles.codeTypeBtn} ${stubCodeView === 'qr' ? styles.activeCodeType : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStubViewMap(prev => ({ ...prev, [flightIata]: 'qr' }));
-                          }}
-                        >
-                          QR Pass
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.codeTypeBtn} ${stubCodeView === 'barcode' ? styles.activeCodeType : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStubViewMap(prev => ({ ...prev, [flightIata]: 'barcode' }));
-                          }}
-                        >
-                          Barcode
-                        </button>
-                      </div>
-
+                      <span className={styles.stubTitle}>SCANNABLE PASS</span>
                       <span className={styles.scanBadge}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
-                        SCAN
+                        <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+                        QR CODE
                       </span>
                     </div>
 
-                    {stubCodeView === 'qr' ? (
-                      /* REAL SCANNABLE QR CODE */
-                      <div className={styles.qrCodeWrapper}>
-                        <div 
-                          className={styles.qrSvgHolder}
-                          dangerouslySetInnerHTML={{ __html: qrCodeObj.svg }}
-                        />
-                        <span className={styles.qrScanHint}>Point camera or click to scan</span>
-                      </div>
-                    ) : (
-                      /* AUTHENTIC IATA BARCODE */
-                      <div className={styles.barcodeWrapper}>
-                        <svg className={styles.barcodeSvg} viewBox="0 0 160 38" preserveAspectRatio="none">
-                          <rect x="0" y="0" width="3" height="38" fill="currentColor" />
-                          <rect x="5" y="0" width="1" height="38" fill="currentColor" />
-                          <rect x="8" y="0" width="2" height="38" fill="currentColor" />
-                          <rect x="13" y="0" width="4" height="38" fill="currentColor" />
-                          <rect x="20" y="0" width="1" height="38" fill="currentColor" />
-                          <rect x="23" y="0" width="3" height="38" fill="currentColor" />
-                          <rect x="28" y="0" width="2" height="38" fill="currentColor" />
-                          <rect x="33" y="0" width="1" height="38" fill="currentColor" />
-                          <rect x="36" y="0" width="4" height="38" fill="currentColor" />
-                          <rect x="43" y="0" width="2" height="38" fill="currentColor" />
-                          <rect x="47" y="0" width="1" height="38" fill="currentColor" />
-                          <rect x="50" y="0" width="3" height="38" fill="currentColor" />
-                          <rect x="56" y="0" width="2" height="38" fill="currentColor" />
-                          <rect x="61" y="0" width="4" height="38" fill="currentColor" />
-                          <rect x="68" y="0" width="1" height="38" fill="currentColor" />
-                          <rect x="71" y="0" width="2" height="38" fill="currentColor" />
-                          <rect x="76" y="0" width="3" height="38" fill="currentColor" />
-                          <rect x="82" y="0" width="1" height="38" fill="currentColor" />
-                          <rect x="86" y="0" width="4" height="38" fill="currentColor" />
-                          <rect x="93" y="0" width="2" height="38" fill="currentColor" />
-                          <rect x="97" y="0" width="3" height="38" fill="currentColor" />
-                          <rect x="103" y="0" width="1" height="38" fill="currentColor" />
-                          <rect x="106" y="0" width="2" height="38" fill="currentColor" />
-                          <rect x="111" y="0" width="4" height="38" fill="currentColor" />
-                          <rect x="118" y="0" width="1" height="38" fill="currentColor" />
-                          <rect x="122" y="0" width="3" height="38" fill="currentColor" />
-                          <rect x="128" y="0" width="2" height="38" fill="currentColor" />
-                          <rect x="133" y="0" width="1" height="38" fill="currentColor" />
-                          <rect x="137" y="0" width="4" height="38" fill="currentColor" />
-                          <rect x="144" y="0" width="2" height="38" fill="currentColor" />
-                          <rect x="149" y="0" width="1" height="38" fill="currentColor" />
-                          <rect x="153" y="0" width="3" height="38" fill="currentColor" />
-                          <rect x="158" y="0" width="2" height="38" fill="currentColor" />
-                        </svg>
-                        <span className={styles.stubTicketNum}>{flightIata} • IATA SCANNABLE</span>
-                      </div>
-                    )}
+                    <div className={styles.qrCodeWrapper}>
+                      <div 
+                        className={styles.qrSvgHolder}
+                        dangerouslySetInnerHTML={{ __html: qrCodeObj.svg }}
+                      />
+                      <span className={styles.qrScanHint}>Tap to Share / Scan</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1071,11 +1239,11 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                       </div>
                     </div>
 
-                    {/* Col 2: Aircraft Specifications & Telemetry */}
+                    {/* Col 2: Airspace Telemetry & Corridor Telemetry */}
                     <div className={styles.expandedColumn}>
                       <h4 className={styles.sectionHeader}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
-                        AIRLINE & AIRCRAFT
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="3"/></svg>
+                        RADAR & AIRSPACE TELEMETRY
                       </h4>
                       <div className={styles.infoCard}>
                         <div className={styles.airlineBrandBlock}>
@@ -1095,7 +1263,7 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                           <div className={styles.airlineTextDetails}>
                             <span className={styles.airlineNameExpanded}>{airline.name}</span>
                             <span className={styles.airlineCodes}>
-                              IATA: {airline.iata || flight.airline?.iata || 'N/A'} | ICAO: {airline.icao || flight.airline?.icao || 'N/A'}
+                              IATA: {airline.iata || flight.airline?.iata || 'N/A'} | Callsign: {airline.callsign || flight.airline?.callsign || 'INDIA'}
                             </span>
                           </div>
                         </div>
@@ -1103,16 +1271,20 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                         <div className={styles.divider} />
 
                         <div className={styles.dataRow}>
-                          <span className={styles.dataLabel}>Model IATA/ICAO</span>
-                          <span className={styles.dataValue}>{flight.aircraft?.iata || flight.aircraft?.icao || 'Airbus A320neo / Boeing 737 MAX'}</span>
+                          <span className={styles.dataLabel}>Airway Corridor</span>
+                          <span className={styles.dataValue}>{`${depIata} ➔ ${arrIata} Upper Trunk Airway`}</span>
                         </div>
                         <div className={styles.dataRow}>
-                          <span className={styles.dataLabel}>Registration Tail</span>
-                          <span className={styles.dataValue}>{flight.aircraft?.registration || flight.live?.registration || 'VT-Registered'}</span>
+                          <span className={styles.dataLabel}>Control Sector FIR</span>
+                          <span className={styles.dataValue}>{depIata === 'DEL' || arrIata === 'DEL' ? 'Delhi VIDF FIR Control' : (depIata === 'BOM' || arrIata === 'BOM' ? 'Mumbai VABF FIR Control' : 'AAI National Oceanic/FIR')}</span>
                         </div>
                         <div className={styles.dataRow}>
-                          <span className={styles.dataLabel}>Transponder (Hex)</span>
-                          <span className={styles.dataValue} style={{ fontFamily: 'var(--font-mono)' }}>{flight.aircraft?.icao24 || flight.live?.hex || 'N/A'}</span>
+                          <span className={styles.dataLabel}>Radar Transponder</span>
+                          <span className={styles.dataValue} style={{ fontFamily: 'var(--font-mono)' }}>Mode-S Squawk {flight.live?.squawk || '2142 (Active)'}</span>
+                        </div>
+                        <div className={styles.dataRow}>
+                          <span className={styles.dataLabel}>Cruise Profile</span>
+                          <span className={styles.dataValue}>Mach 0.78 • Assigned FL340</span>
                         </div>
 
                         {flight.live ? (
@@ -1199,6 +1371,9 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
       {/* ========================================================
           DIGITAL BOARDING PASS & QR SCANNER MODAL
           ======================================================== */}
+      {/* ========================================================
+          DIGITAL BOARDING PASS & SHARE MODAL
+          ======================================================== */}
       {activeScanFlight && (
         <div 
           className={styles.modalBackdrop}
@@ -1219,8 +1394,8 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
                   </svg>
                 </div>
                 <div>
-                  <h3 className={styles.modalTitle}>Digital Boarding Pass & QR Scanner</h3>
-                  <span className={styles.modalSub}>IATA BCBP • Verified ADS-B Telemetry</span>
+                  <h3 className={styles.modalTitle}>Share Flight & Digital Boarding Pass</h3>
+                  <span className={styles.modalSub}>Verified ADS-B Telemetry • Scannable QR Code</span>
                 </div>
               </div>
               <button 
@@ -1233,149 +1408,136 @@ export default function FlightResults({ flights, loading, error, serverNow, sear
               </button>
             </div>
 
-            {/* Modal Body */}
+            {/* Modal Body: Compact, Single-Column Showcase Layout (Fits viewport, Zero Scrolling) */}
             <div className={styles.modalBody}>
-              {/* Scannable High-Res QR Code Card with Laser Sweep */}
-              <div className={styles.scannerDisplayCard}>
-                <div className={styles.scannerFrame}>
-                  <div className={styles.scannerCorners} />
-                  
-                  {/* Dynamic Real SVG QR Code */}
-                  <div 
-                    className={styles.modalQrHolder}
-                    dangerouslySetInnerHTML={{ 
-                      __html: generateQRCodeSVG(
-                        `${typeof window !== 'undefined' ? window.location.origin : 'https://flightdeck.app'}/?flight=${activeScanFlight.flight?.iata || 'FLIGHT'}&from=${activeScanFlight.departure?.iata}&to=${activeScanFlight.arrival?.iata}`,
-                        180,
-                        'var(--text-primary)',
-                        'transparent'
-                      ).svg 
-                    }}
+              {/* Boarding Pass Image Showcase */}
+              <div className={styles.showcaseWrap}>
+                {passPreviewUrl ? (
+                  <img
+                    src={passPreviewUrl}
+                    alt={`Boarding Pass for ${activeScanFlight.flight?.iata || 'Flight'}`}
+                    className={styles.showcasePassImg}
                   />
-
-                  {/* Laser Scan Beam Animation */}
-                  <div className={`${styles.laserScanLine} ${isSimulatingScan ? styles.laserActive : ''}`} />
-                </div>
-
-                <div className={styles.scanInstructionBlock}>
-                  <div className={styles.qrCodeUrlBadge}>
-                    <span>flightdeck.app/?flight={activeScanFlight.flight?.iata || 'FLIGHT'}</span>
+                ) : (
+                  <div className={styles.showcaseLoadingBox}>
+                    <span className={styles.simulatingSpinner} />
+                    <span>Rendering {theme === 'light' ? 'Light' : 'Dark'} Mode Boarding Pass...</span>
                   </div>
-                  <p className={styles.scanPromptText}>
-                    Point any smartphone camera to scan directly into FlightDeck, or test below:
-                  </p>
-
-                  <button
-                    type="button"
-                    className={`${styles.simulateScanBtn} ${isSimulatingScan ? styles.simulating : ''} ${scanVerified ? styles.verified : ''}`}
-                    onClick={handleSimulateScan}
-                    disabled={isSimulatingScan}
-                  >
-                    {isSimulatingScan ? (
-                      <>
-                        <span className={styles.simulatingSpinner} />
-                        Scanning Transponder & BCBP...
-                      </>
-                    ) : scanVerified ? (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                        PASS VERIFIED • VALIDATED
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
-                        Simulate Gate Scanner
-                      </>
-                    )}
-                  </button>
-                </div>
+                )}
               </div>
 
-              {/* Pass Details Info Card */}
-              <div className={styles.modalPassCard}>
-                <div className={styles.modalFlightHeader}>
-                  <div>
-                    <span className={styles.modalAirlineName}>{activeScanFlight.airline?.name || 'Commercial Airline'}</span>
-                    <strong className={styles.modalFlightCode}>{activeScanFlight.flight?.iata || activeScanFlight.flight?.icao}</strong>
-                  </div>
-                  <div className={styles.modalStatusPill}>
-                    {activeScanFlight.flight_status ? activeScanFlight.flight_status.toUpperCase() : 'SCHEDULED'}
-                  </div>
+              {/* Toast / Guidance banner */}
+              {(copyToast || shareToastText) && (
+                <div className={styles.shareActiveToast}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 14 14" />
+                  </svg>
+                  <span>{shareToastText || 'Flight link copied to clipboard!'}</span>
                 </div>
+              )}
 
-                {/* Route Route Row */}
-                <div className={styles.modalRouteRow}>
-                  <div>
-                    <span className={styles.modalIata}>{activeScanFlight.departure?.iata}</span>
-                    <span className={styles.modalCityName}>{getCityName(activeScanFlight.departure?.iata, activeScanFlight.departure?.airport)}</span>
-                    <span className={styles.modalTime}>{formatTime(activeScanFlight.departure?.scheduled)}</span>
-                  </div>
-                  
-                  <div className={styles.modalRouteArrow}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" transform="rotate(90 12 12)"/>
-                    </svg>
-                    <span>{getFlightDuration(activeScanFlight.departure?.scheduled, activeScanFlight.arrival?.scheduled)}</span>
-                  </div>
+              {/* Primary App Share Buttons */}
+              <div className={styles.shareAppsRow}>
+                <button
+                  type="button"
+                  className={`${styles.shareAppBtn} ${styles.shareWhatsappBtn}`}
+                  onClick={() => handleShareWhatsapp(activeScanFlight)}
+                  disabled={isGeneratingPhoto}
+                  title="Share flight link & copy photo pass for WhatsApp"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                  </svg>
+                  <span>WhatsApp</span>
+                  <span className={styles.shareAppSubtext}>+ Photo Pass</span>
+                </button>
 
-                  <div style={{ textAlign: 'right' }}>
-                    <span className={styles.modalIata}>{activeScanFlight.arrival?.iata}</span>
-                    <span className={styles.modalCityName}>{getCityName(activeScanFlight.arrival?.iata, activeScanFlight.arrival?.airport)}</span>
-                    <span className={styles.modalTime}>{formatTime(activeScanFlight.arrival?.scheduled)}</span>
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  className={`${styles.shareAppBtn} ${styles.shareInstagramBtn}`}
+                  onClick={() => handleShareInstagram(activeScanFlight)}
+                  disabled={isGeneratingPhoto}
+                  title="Share photo pass for Instagram Stories or Feed"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
+                  <span>Instagram</span>
+                  <span className={styles.shareAppSubtext}>Story / Feed</span>
+                </button>
 
-                {/* Seat, Terminal, Gate, Boarding Group Grid */}
-                <div className={styles.modalMetaGrid}>
-                  <div className={styles.modalMetaCell}>
-                    <span className={styles.modalMetaLabel}>PASSENGER</span>
-                    <strong className={styles.modalMetaVal}>Verified Aviator</strong>
-                  </div>
-                  <div className={styles.modalMetaCell}>
-                    <span className={styles.modalMetaLabel}>SEAT</span>
-                    <strong className={styles.modalMetaVal}>{getSimulatedSeat(activeScanFlight.flight?.iata)} (Window)</strong>
-                  </div>
-                  <div className={styles.modalMetaCell}>
-                    <span className={styles.modalMetaLabel}>GATE</span>
-                    <strong className={styles.modalMetaVal}>{activeScanFlight.departure?.gate || 'Gate 14'}</strong>
-                  </div>
-                  <div className={styles.modalMetaCell}>
-                    <span className={styles.modalMetaLabel}>TERMINAL</span>
-                    <strong className={styles.modalMetaVal}>Term {activeScanFlight.departure?.terminal || '1'}</strong>
-                  </div>
-                  <div className={styles.modalMetaCell}>
-                    <span className={styles.modalMetaLabel}>BOARDING</span>
-                    <strong className={styles.modalMetaVal}>{getBoardingTime(activeScanFlight.departure?.scheduled)}</strong>
-                  </div>
-                  <div className={styles.modalMetaCell}>
-                    <span className={styles.modalMetaLabel}>BAGGAGE</span>
-                    <strong className={styles.modalMetaVal}>Belt {activeScanFlight.arrival?.baggage || '3'}</strong>
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  className={`${styles.shareAppBtn} ${styles.shareNativeBtn}`}
+                  onClick={() => handleShareNative(activeScanFlight)}
+                  disabled={isGeneratingPhoto}
+                  title="Share photo pass directly to apps via system share sheet"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="18" cy="5" r="3"/>
+                    <circle cx="6" cy="12" r="3"/>
+                    <circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                  </svg>
+                  <span>Share via App</span>
+                  <span className={styles.shareAppSubtext}>with Photo</span>
+                </button>
+              </div>
 
-                {/* Action Buttons */}
-                <div className={styles.modalActions}>
-                  <button
-                    type="button"
-                    className={styles.copyLinkBtn}
-                    onClick={() => handleCopyShareLink(
-                      activeScanFlight.flight?.iata || '',
-                      activeScanFlight.departure?.iata || '',
-                      activeScanFlight.arrival?.iata || ''
-                    )}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                    {copyToast ? 'Link Copied! Ready to Scan' : 'Copy Scannable Flight Link'}
-                  </button>
+              {/* Action Toolbar */}
+              <div className={styles.downloadAndCopyRow}>
+                <button
+                  type="button"
+                  className={styles.downloadPhotoBtn}
+                  onClick={() => handleDownloadBoardingPassPhoto(activeScanFlight)}
+                  disabled={isGeneratingPhoto}
+                  title="Download Boarding Pass PNG photo"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  <span>Download Pass</span>
+                </button>
 
-                  <button
-                    type="button"
-                    className={styles.closeDoneBtn}
-                    onClick={() => setActiveScanFlight(null)}
-                  >
-                    Done
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className={styles.copyPhotoBtn}
+                  onClick={() => handleCopyPhotoToClipboard(activeScanFlight)}
+                  disabled={isGeneratingPhoto}
+                  title="Copy HD Pass Image to Clipboard (Paste with Ctrl+V into WhatsApp)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  <span>Copy Image</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.copyLinkBtn}
+                  onClick={() => handleCopyShareLink(
+                    activeScanFlight.flight?.iata || '',
+                    activeScanFlight.departure?.iata || '',
+                    activeScanFlight.arrival?.iata || ''
+                  )}
+                  title="Copy live flight tracker link"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <span>{copyToast ? 'Link Copied!' : 'Copy Link'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.closeDoneBtn}
+                  onClick={() => setActiveScanFlight(null)}
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

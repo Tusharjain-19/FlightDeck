@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useId } from 'react';
 import Image from 'next/image';
 import { getAirlineInfo } from './airlineData';
 import { useSettings } from '../lib/settingsContext';
+import { getFlightPhase } from '../lib/flightPhase';
 import styles from './FlightTrajectory.module.css';
 
 const iataTimezoneMap = {
@@ -172,13 +173,11 @@ function getPointOnArc(t, width, height, padding, embedded = false) {
   const clampedT = Math.max(0, Math.min(1, t));
   const x = startX + (endX - startX) * clampedT;
 
-  // Realistic aerodynamic altitude curve: climbs fast, stays high in cruise, glides down
-  // Smooth sine exponent curve
-  const peakHeight = embedded ? height * 0.44 : height * 0.60;
+  // Aerodynamic parabolic flight curve: smooth continuous arc from departure to arrival
+  const peakHeight = embedded ? height * 0.46 : height * 0.58;
   const baseY = embedded ? height * 0.76 : height * 0.74;
   
-  // Aeronautical altitude profile: climbs rapidly up to FL360, gentle flat cruise dome, steady descent
-  const curveFactor = Math.pow(Math.sin(Math.PI * clampedT), 0.72);
+  const curveFactor = Math.sin(Math.PI * clampedT);
   const y = baseY - (peakHeight * curveFactor);
 
   return { x, y };
@@ -186,7 +185,7 @@ function getPointOnArc(t, width, height, padding, embedded = false) {
 
 function getMilestones(status, embedded = false, width = 800) {
   if (embedded) {
-    if (width < 420) {
+    if (width < 260) {
       return [
         { id: 'gate', label: 'GATE', t: 0, alt: '0 FT' },
         { id: 'cruise', label: 'CRUISE', t: 0.5, alt: '36,000 FT' },
@@ -226,6 +225,8 @@ function shortenAirportName(name) {
 
 export default function FlightTrajectory({ flight, embedded = false }) {
   const { convertSpeed, convertAltitude } = useSettings();
+  const rawUid = useId ? useId() : 'trj';
+  const uid = rawUid.replace(/[^a-zA-Z0-9]/g, '');
   const svgRef = useRef(null);
   const completedPathRef = useRef(null);
   const [dims, setDims] = useState({ width: 800, height: embedded ? 92 : 280 });
@@ -251,11 +252,13 @@ export default function FlightTrajectory({ flight, embedded = false }) {
     return () => window.removeEventListener('resize', handleResize);
   }, [embedded]);
 
+  const flightPhase = useMemo(() => getFlightPhase(flight), [flight]);
   const realProgress = calculateProgress(flight.departure, flight.arrival, flight.flight_status, flight.live);
-  const activeT = hoverT !== null ? hoverT : realProgress;
+  const activeT = hoverT !== null ? hoverT : flightPhase.t;
 
   const { width, height } = dims;
-  const padding = embedded ? (width < 450 ? 22 : 36) : 60;
+  // Make the curve extend cleanly from departure to arrival without edge clipping
+  const padding = embedded ? 24 : 60;
   const milestones = getMilestones(flight.flight_status, embedded, width);
   const baseY = embedded ? height * 0.76 : height * 0.74;
 
@@ -286,35 +289,39 @@ export default function FlightTrajectory({ flight, embedded = false }) {
 
   const arcPath = `M ${arcPoints.join(' L ')}`;
 
-  // Completed arc (up to progress)
+  // Completed arc: tracks strictly up to the plane's real phase position
+  const planeT = activeT;
   const completedPoints = useMemo(() => {
+    if (planeT <= 0.03) return [];
     const pts = [];
-    const steps = Math.floor(activeT * 120);
+    const steps = Math.max(2, Math.floor(planeT * 120));
     for (let i = 0; i <= steps; i++) {
-      const t = i / 120;
+      const t = (i / steps) * planeT;
       const pt = getPointOnArc(t, width, height, padding, embedded);
       pts.push(`${pt.x.toFixed(1)},${pt.y.toFixed(1)}`);
     }
-    // Add exact progress point at end
-    const endPt = getPointOnArc(activeT, width, height, padding, embedded);
-    pts.push(`${endPt.x.toFixed(1)},${endPt.y.toFixed(1)}`);
     return pts;
-  }, [activeT, width, height, padding, embedded]);
+  }, [planeT, width, height, padding, embedded]);
 
   const completedPath = completedPoints.length > 1 ? `M ${completedPoints.join(' L ')}` : '';
 
   // Area under curve fill path
   const startPt = getPointOnArc(0, width, height, padding, embedded);
-  const currentPt = getPointOnArc(activeT, width, height, padding, embedded);
+  const currentPt = getPointOnArc(planeT, width, height, padding, embedded);
   const areaPath = completedPoints.length > 1
     ? `M ${startPt.x.toFixed(1)},${baseY} L ${completedPoints.join(' L ')} L ${currentPt.x.toFixed(1)},${baseY} Z`
     : '';
 
-  // Plane position & tangent rotation
-  const planePos = getPointOnArc(activeT, width, height, padding, embedded);
-  const prevPos = getPointOnArc(Math.max(0, activeT - 0.015), width, height, padding, embedded);
-  const nextPos = getPointOnArc(Math.min(1, activeT + 0.015), width, height, padding, embedded);
+  // Plane position: sits firmly at its real flight stage along the arc
+  const planePos = getPointOnArc(planeT, width, height, padding, embedded);
+  const prevPos = getPointOnArc(Math.max(0, planeT - 0.02), width, height, padding, embedded);
+  const nextPos = getPointOnArc(Math.min(1, planeT + 0.02), width, height, padding, embedded);
   const angle = Math.atan2(nextPos.y - prevPos.y, nextPos.x - prevPos.x) * (180 / Math.PI) + 90;
+
+  const badgeWidth = embedded ? 96 : 110;
+  const halfBadge = badgeWidth / 2;
+  const badgeX = Math.max(halfBadge + 6, Math.min(width - halfBadge - 6, planePos.x));
+  const badgeY = Math.max(embedded ? 12 : 18, planePos.y - (embedded ? 18 : 26));
 
   const depIata = flight.departure?.iata || '---';
   const arrIata = flight.arrival?.iata || '---';
@@ -466,34 +473,36 @@ export default function FlightTrajectory({ flight, embedded = false }) {
           className={styles.svg}
         >
           <defs>
-            {/* Smooth glowing laser trail for flight path */}
-            <filter id="laserGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation={embedded ? "1.5" : "2.5"} result="glow" />
-              <feMerge>
-                <feMergeNode in="glow" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
+            {/* Smooth glowing laser trail for flight path (full mode only, no clipping artifact) */}
+            {!embedded && (
+              <filter id={`laserGlow_${uid}`} x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2.5" result="glow" />
+                <feMerge>
+                  <feMergeNode in="glow" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            )}
 
             {/* Neon Area Fill Gradient under the arc */}
-            <linearGradient id="altitudeGradient" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={`altitudeGradient_${uid}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#0ea5e9" stopOpacity={embedded ? "0.22" : "0.28"} />
               <stop offset="60%" stopColor="#2563eb" stopOpacity={embedded ? "0.08" : "0.12"} />
               <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
             </linearGradient>
 
             {/* Airplane Engine Afterglow */}
-            <radialGradient id="engineGlow" cx="50%" cy="50%" r="50%">
+            <radialGradient id={`engineGlow_${uid}`} cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.9" />
               <stop offset="45%" stopColor="#0ea5e9" stopOpacity="0.4" />
               <stop offset="100%" stopColor="#0284c7" stopOpacity="0" />
             </radialGradient>
 
             {/* Trajectory Laser Gradient */}
-            <linearGradient id="laserPathGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#0ea5e9" />
-              <stop offset="50%" stopColor="#38bdf8" />
-              <stop offset="100%" stopColor="#60a5fa" />
+            <linearGradient id={`laserPathGradient_${uid}`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#0284c7" />
+              <stop offset="50%" stopColor="#0ea5e9" />
+              <stop offset="100%" stopColor="#38bdf8" />
             </linearGradient>
           </defs>
 
@@ -503,16 +512,16 @@ export default function FlightTrajectory({ flight, embedded = false }) {
             y1={baseY}
             x2={width - padding + 20}
             y2={baseY}
-            stroke="var(--trajectory-line)"
+            stroke={embedded ? '#94a3b8' : 'var(--trajectory-line)'}
             strokeWidth="1.2"
             opacity="0.8"
           />
 
-          {/* Altitude Gradient Area under Completed Flight Path */}
-          {areaPath && (
+          {/* Altitude Gradient Area under Completed Flight Path (full mode only) */}
+          {!embedded && areaPath && (
             <path
               d={areaPath}
-              fill="url(#altitudeGradient)"
+              fill={`url(#altitudeGradient_${uid})`}
               className={styles.altitudeArea}
             />
           )}
@@ -521,10 +530,11 @@ export default function FlightTrajectory({ flight, embedded = false }) {
           <path
             d={arcPath}
             fill="none"
-            stroke="var(--trajectory-line)"
-            strokeWidth={embedded ? "1.8" : "2.2"}
+            stroke={embedded ? '#94a3b8' : 'var(--trajectory-line)'}
+            strokeWidth={embedded ? "2.2" : "2.2"}
             strokeDasharray="6 4"
-            opacity="0.85"
+            opacity="0.9"
+            className={styles.corridorArc}
           />
 
           {/* Glowing Completed Laser Trajectory Arc */}
@@ -533,10 +543,10 @@ export default function FlightTrajectory({ flight, embedded = false }) {
               ref={completedPathRef}
               d={completedPath}
               fill="none"
-              stroke="url(#laserPathGradient)"
-              strokeWidth={embedded ? "2.6" : "3.4"}
+              stroke={`url(#laserPathGradient_${uid})`}
+              strokeWidth={embedded ? "3.2" : "3.4"}
               strokeLinecap="round"
-              filter="url(#laserGlow)"
+              filter={embedded ? undefined : `url(#laserGlow_${uid})`}
               className={styles.completedArc}
             />
           )}
@@ -555,10 +565,10 @@ export default function FlightTrajectory({ flight, embedded = false }) {
                   y1={pt.y}
                   x2={pt.x}
                   y2={baseY}
-                  stroke={isCompleted ? 'rgba(14, 165, 233, 0.45)' : 'var(--trajectory-line)'}
+                  stroke={isCompleted ? 'rgba(14, 165, 233, 0.6)' : (embedded ? '#94a3b8' : 'var(--trajectory-line)')}
                   strokeWidth={isCurrent ? "1.5" : "1"}
                   strokeDasharray={isCurrent ? "2 2" : "3 3"}
-                  opacity={isCompleted ? "0.9" : "0.5"}
+                  opacity={isCompleted ? "0.9" : "0.7"}
                 />
 
                 {/* Waypoint Base Pin on Ground */}
@@ -566,7 +576,7 @@ export default function FlightTrajectory({ flight, embedded = false }) {
                   cx={pt.x}
                   cy={baseY}
                   r={isCurrent ? (embedded ? 2.5 : 3) : (embedded ? 1.5 : 2)}
-                  fill={isCompleted ? '#0ea5e9' : 'var(--text-muted)'}
+                  fill={isCompleted ? '#0ea5e9' : (embedded ? '#475569' : 'var(--text-muted)')}
                 />
 
                 {/* Radar Waypoint Dot on Arc */}
@@ -574,8 +584,8 @@ export default function FlightTrajectory({ flight, embedded = false }) {
                   cx={pt.x}
                   cy={pt.y}
                   r={isCurrent ? (embedded ? 4.5 : 6) : (embedded ? 2.8 : 3.5)}
-                  fill={isCompleted ? '#38bdf8' : 'var(--bg-card)'}
-                  stroke={isCompleted ? '#0284c7' : 'var(--trajectory-line)'}
+                  fill={isCompleted ? '#38bdf8' : (embedded ? '#f8fafc' : 'var(--bg-card)')}
+                  stroke={isCompleted ? '#0284c7' : (embedded ? '#475569' : 'var(--trajectory-line)')}
                   strokeWidth={isCurrent ? "2" : "1.5"}
                   className={isCurrent ? styles.activeBeaconDot : ''}
                 />
@@ -596,17 +606,21 @@ export default function FlightTrajectory({ flight, embedded = false }) {
                   </circle>
                 )}
 
-                {/* Waypoint Label */}
+                {/* Waypoint Label - Solid High Contrast Ink with crisp halo */}
                 <text
                   x={pt.x}
                   y={baseY + (embedded ? 13 : 18)}
                   textAnchor="middle"
-                  fontSize={embedded ? "7.5" : "9.5"}
+                  fontSize={embedded ? "8.5" : "10"}
                   fontFamily="var(--font-mono)"
-                  fontWeight={isCurrent ? "800" : "600"}
+                  fontWeight={isCurrent ? "950" : "900"}
                   letterSpacing="0.08em"
-                  fill={isCurrent ? '#0ea5e9' : (isCompleted ? 'var(--text-primary)' : 'var(--text-muted)')}
-                  className={styles.waypointLabel}
+                  paintOrder="stroke fill"
+                  stroke="var(--bg-card)"
+                  strokeWidth="3px"
+                  strokeLinejoin="round"
+                  fill={isCurrent ? '#0284c7' : (isCompleted ? '#0284c7' : '#0f172a')}
+                  className={`${styles.waypointLabel} ${isCurrent ? styles.waypointLabelActive : ''}`}
                 >
                   {m.label}
                 </text>
@@ -667,17 +681,17 @@ export default function FlightTrajectory({ flight, embedded = false }) {
             </>
           )}
 
-          {/* Live Flight Telemetry HUD Badge above Airplane */}
-          {speedKts !== null && (
+          {/* Live Flight Telemetry HUD Badge above Airplane (full mode only) */}
+          {!embedded && speedKts !== null && (
             <g 
-              transform={`translate(${planePos.x}, ${planePos.y - (embedded ? 18 : 26)})`}
+              transform={`translate(${planePos.x}, ${planePos.y - 26})`}
               className={styles.speedHudTag}
             >
               <rect 
-                x={embedded ? "-34" : "-46"} 
-                y={embedded ? "-8" : "-10"} 
-                width={embedded ? "68" : "92"} 
-                height={embedded ? "15" : "18"} 
+                x="-46" 
+                y="-10" 
+                width="92" 
+                height="18" 
                 rx="4" 
                 fill="var(--bg-card)" 
                 stroke="#0ea5e9" 
@@ -686,9 +700,9 @@ export default function FlightTrajectory({ flight, embedded = false }) {
               />
               <text 
                 x="0" 
-                y={embedded ? "3" : "3"} 
+                y="3" 
                 textAnchor="middle" 
-                fontSize={embedded ? "7.5" : "9"} 
+                fontSize="9" 
                 fontFamily="var(--font-mono)" 
                 fontWeight="700" 
                 fill="#0ea5e9"
@@ -698,51 +712,78 @@ export default function FlightTrajectory({ flight, embedded = false }) {
             </g>
           )}
 
-          {/* Modern Airliner Icon with Exhaust Afterglow & Levitation */}
+          {/* Authentic Commercial Jetliner Vector SVG sticking at verified aircraft stage */}
           <g 
             transform={`translate(${planePos.x}, ${planePos.y}) rotate(${angle})`}
             className={styles.airplaneContainer}
           >
-            {/* Twin Engine Particle Exhaust Glow */}
-            <ellipse
+            {/* Subtle radar pulse beacon around aircraft position */}
+            <circle
               cx="0"
-              cy={embedded ? "12" : "16"}
-              rx={embedded ? "5" : "7"}
-              ry={embedded ? "10" : "14"}
-              fill="url(#engineGlow)"
-              className={styles.engineFlare}
+              cy="0"
+              r={embedded ? "13" : "16"}
+              fill="rgba(2, 132, 199, 0.14)"
+              stroke="#0284c7"
+              strokeWidth="1.2"
+              strokeDasharray="2 2"
+              className={styles.planeGlowPulse}
             />
 
-            {/* Pulsing Radar Aura */}
-            <circle 
-              cx="0" 
-              cy="0" 
-              r={embedded ? "18" : "24"} 
-              fill="url(#engineGlow)" 
-              opacity="0.35" 
-              className={styles.planeGlowPulse} 
-            />
-
-            {/* Aerodynamic Jet Airliner Vector SVG */}
-            <g transform={embedded ? "translate(-12, -12) scale(1.05)" : "translate(-16, -16) scale(1.4)"}>
-              {/* Airplane body shadow */}
+            <g transform={embedded ? "scale(1.18) translate(-12, -12)" : "scale(1.38) translate(-12, -12)"}>
+              {/* White contrast outline halo for 100% visibility against all backgrounds */}
               <path
-                d="M12 2L9.5 9.5H3L1.5 11L9.5 13.5V18.5L7.5 20V21.5L12 20.2L16.5 21.5V20L14.5 18.5V13.5L22.5 11L21 9.5H14.5L12 2Z"
-                fill="rgba(0, 0, 0, 0.3)"
-                transform="translate(1, 1)"
+                d="M 12 1.5 C 12.6 2.2 13.4 3.8 13.4 6.5 L 13.4 9 L 22.5 13.2 L 22.5 14.5 L 14 12.8 L 14 16 L 13.2 19 L 17.5 21.6 L 17.5 22.5 L 12 21.5 L 6.5 22.5 L 6.5 21.6 L 10.8 19 L 10 16 L 10 12.8 L 1.5 14.5 L 1.5 13.2 L 10.6 9 L 10.6 6.5 C 10.6 3.8 11.4 2.2 12 1.5 Z"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="3.2"
+                strokeLinejoin="round"
               />
-              {/* Main airplane shape */}
+              {/* Aerodynamic jet body in clean aircraft blue */}
               <path
-                d="M12 2L9.5 9.5H3L1.5 11L9.5 13.5V18.5L7.5 20V21.5L12 20.2L16.5 21.5V20L14.5 18.5V13.5L22.5 11L21 9.5H14.5L12 2Z"
-                fill="var(--text-primary)"
-                stroke="#0ea5e9"
-                strokeWidth="0.8"
+                d="M 12 1.5 C 12.6 2.2 13.4 3.8 13.4 6.5 L 13.4 9 L 22.5 13.2 L 22.5 14.5 L 14 12.8 L 14 16 L 13.2 19 L 17.5 21.6 L 17.5 22.5 L 12 21.5 L 6.5 22.5 L 6.5 21.6 L 10.8 19 L 10 16 L 10 12.8 L 1.5 14.5 L 1.5 13.2 L 10.6 9 L 10.6 6.5 C 10.6 3.8 11.4 2.2 12 1.5 Z"
+                fill="#0284c7"
+                stroke="#0369a1"
+                strokeWidth="1.2"
                 strokeLinejoin="round"
                 className={styles.airlinerBody}
               />
-              {/* Cockpit canopy glass */}
-              <ellipse cx="12" cy="5.5" rx="1.2" ry="2" fill="#38bdf8" />
+              {/* Twin jet turbines under wings */}
+              <rect x="7.8" y="11" width="1.6" height="3.2" rx="0.8" fill="#0369a1" stroke="#ffffff" strokeWidth="0.6" />
+              <rect x="14.6" y="11" width="1.6" height="3.2" rx="0.8" fill="#0369a1" stroke="#ffffff" strokeWidth="0.6" />
+              {/* Cockpit canopy visor */}
+              <ellipse cx="12" cy="4.2" rx="1.1" ry="1.8" fill="#ffffff" />
             </g>
+          </g>
+
+          {/* Live Flight Phase Badge directly above aircraft mentioning stage (e.g. TAXIING TO RUNWAY) */}
+          <g 
+            transform={`translate(${badgeX}, ${badgeY})`}
+            className={styles.phaseBadgeGroup}
+          >
+            <rect
+              x={-halfBadge}
+              y="-9"
+              width={badgeWidth}
+              height="18"
+              rx="9"
+              fill="var(--bg-card, #ffffff)"
+              stroke="#0ea5e9"
+              strokeWidth="1"
+              className={styles.phaseBadgeBg}
+            />
+            <circle cx={-halfBadge + 10} cy="0" r="2.5" fill="#10b981" />
+            <text
+              x="6"
+              y="3"
+              textAnchor="middle"
+              fontSize="7.5"
+              fontFamily="var(--font-mono, 'JetBrains Mono', monospace)"
+              fontWeight="900"
+              letterSpacing="0.04em"
+              fill="var(--text-primary, #0f172a)"
+            >
+              {flightPhase.shortLabel || flightPhase.label}
+            </text>
           </g>
 
           {/* Interactive Scrub Indicator / Hover Ring */}

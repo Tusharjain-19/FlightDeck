@@ -257,11 +257,165 @@ export const internationalAirlines = {
     logo: '/airlines/VS.svg',
     slogan: 'See the world differently',
     type: 'International Long-Haul Carrier'
+  },
+  AF: {
+    name: 'Air France',
+    website: 'airfrance.com',
+    websiteUrl: 'https://www.airfrance.com',
+    iata: 'AF',
+    icao: 'AFR',
+    callsign: 'AIRFRANS',
+    country: 'France',
+    hub: 'CDG',
+    primaryColor: '#002157',
+    accentColor: '#ED0000',
+    logo: '/airlines/AF.svg',
+    slogan: 'Elegance is an ancient art. And a modern one.',
+    type: 'International Flag Carrier'
+  },
+  KL: {
+    name: 'KLM Royal Dutch Airlines',
+    website: 'klm.com',
+    websiteUrl: 'https://www.klm.com',
+    iata: 'KL',
+    icao: 'KLM',
+    callsign: 'KLM',
+    country: 'Netherlands',
+    hub: 'AMS',
+    primaryColor: '#00A1DE',
+    accentColor: '#FFFFFF',
+    logo: '/airlines/KL.svg',
+    slogan: 'Journeys of Inspiration',
+    type: 'International Flag Carrier'
+  },
+  FZ: {
+    name: 'flydubai',
+    website: 'flydubai.com',
+    websiteUrl: 'https://www.flydubai.com',
+    iata: 'FZ',
+    icao: 'FDB',
+    callsign: 'SKY DUBAI',
+    country: 'United Arab Emirates',
+    hub: 'DXB',
+    primaryColor: '#003B70',
+    accentColor: '#E65A14',
+    logo: '/airlines/FZ.svg',
+    slogan: 'Open your world',
+    type: 'International Scheduled Carrier'
+  },
+  G9: {
+    name: 'Air Arabia',
+    website: 'airarabia.com',
+    websiteUrl: 'https://www.airarabia.com',
+    iata: 'G9',
+    icao: 'ABY',
+    callsign: 'ARABIA',
+    country: 'United Arab Emirates',
+    hub: 'SHJ',
+    primaryColor: '#E31B23',
+    accentColor: '#FFFFFF',
+    logo: '/airlines/G9.svg',
+    slogan: 'Where Next',
+    type: 'International Low-Cost Carrier'
+  },
+  TG: {
+    name: 'Thai Airways',
+    website: 'thaiairways.com',
+    websiteUrl: 'https://www.thaiairways.com',
+    iata: 'TG',
+    icao: 'THA',
+    callsign: 'THAI',
+    country: 'Thailand',
+    hub: 'BKK',
+    primaryColor: '#4B127B',
+    accentColor: '#D4AF37',
+    logo: '/airlines/TG.svg',
+    slogan: 'Smooth as Silk',
+    type: 'International Flag Carrier'
+  },
+  MH: {
+    name: 'Malaysia Airlines',
+    website: 'malaysiaairlines.com',
+    websiteUrl: 'https://www.malaysiaairlines.com',
+    iata: 'MH',
+    icao: 'MAS',
+    callsign: 'MALAYSIAN',
+    country: 'Malaysia',
+    hub: 'KUL',
+    primaryColor: '#002B66',
+    accentColor: '#E31B23',
+    logo: '/airlines/MH.svg',
+    slogan: 'Malaysian Hospitality Begins With Us',
+    type: 'International Flag Carrier'
+  },
+  WY: {
+    name: 'Oman Air',
+    website: 'omanair.com',
+    websiteUrl: 'https://www.omanair.com',
+    iata: 'WY',
+    icao: 'OMA',
+    callsign: 'OMAN AIR',
+    country: 'Oman',
+    hub: 'MCT',
+    primaryColor: '#99773D',
+    accentColor: '#1C3F3A',
+    logo: '/airlines/WY.svg',
+    slogan: 'Modern Vision, Authentic Hospitality',
+    type: 'International Flag Carrier'
+  },
+  SV: {
+    name: 'Saudia',
+    website: 'saudia.com',
+    websiteUrl: 'https://www.saudia.com',
+    iata: 'SV',
+    icao: 'SVA',
+    callsign: 'SAUDIA',
+    country: 'Saudi Arabia',
+    hub: 'JED',
+    primaryColor: '#006847',
+    accentColor: '#C4A052',
+    logo: '/airlines/SV.svg',
+    slogan: 'Welcome to your world',
+    type: 'International Flag Carrier'
+  },
+  GF: {
+    name: 'Gulf Air',
+    website: 'gulfair.com',
+    websiteUrl: 'https://www.gulfair.com',
+    iata: 'GF',
+    icao: 'GFA',
+    callsign: 'GULF AIR',
+    country: 'Bahrain',
+    hub: 'BAH',
+    primaryColor: '#B38B42',
+    accentColor: '#1C2430',
+    logo: '/airlines/GF.svg',
+    slogan: 'Smart, Friendly, Passionate',
+    type: 'International Flag Carrier'
+  },
+  CX: {
+    name: 'Cathay Pacific',
+    website: 'cathaypacific.com',
+    websiteUrl: 'https://www.cathaypacific.com',
+    iata: 'CX',
+    icao: 'CPA',
+    callsign: 'CATHAY',
+    country: 'Hong Kong',
+    hub: 'HKG',
+    primaryColor: '#006564',
+    accentColor: '#FFFFFF',
+    logo: '/airlines/CX.svg',
+    slogan: 'Move Beyond',
+    type: 'International Flag Carrier'
   }
 };
 
-export function getAllAirlines() {
-  return Object.values(indianAirlines);
+export function getAllAirlines(filter = 'ALL') {
+  const indian = Object.values(indianAirlines);
+  const international = Object.values(internationalAirlines);
+  if (filter === 'INDIAN') return indian;
+  if (filter === 'INTERNATIONAL') return international;
+  return [...indian, ...international];
 }
 
 export function getAirlineInfo(iataOrIcao) {

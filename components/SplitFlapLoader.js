@@ -1,147 +1,285 @@
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
+'use client';
+
+import { useEffect, useState, useMemo } from 'react';
+import { useTheme } from './ThemeProvider';
 import styles from './SplitFlapLoader.module.css';
 
-const initialMatrix = [
-  ['N', 'E', 'W', ' ', 'D', 'E', 'L', 'H', 'I', ' ', ' ', 'D', 'E', 'L', ' ', '0', '8', ':', '3', '0'],
-  ['M', 'U', 'M', 'B', 'A', 'I', ' ', ' ', ' ', ' ', ' ', 'B', 'O', 'M', ' ', '1', '0', ':', '1', '5'],
-  ['B', 'E', 'N', 'G', 'A', 'L', 'U', 'R', 'U', ' ', ' ', 'B', 'L', 'R', ' ', '1', '1', ':', '4', '5'],
-  ['J', 'A', 'I', 'P', 'U', 'R', ' ', ' ', ' ', ' ', ' ', 'J', 'A', 'I', ' ', '1', '3', ':', '2', '0'],
-  ['D', 'U', 'B', 'A', 'I', ' ', ' ', ' ', ' ', ' ', ' ', 'D', 'X', 'B', ' ', '1', '5', ':', '0', '0'],
-  ['K', 'O', 'L', 'K', 'A', 'T', 'A', ' ', ' ', ' ', ' ', 'C', 'C', 'U', ' ', '1', '6', ':', '3', '0'],
-  ['S', 'R', 'I', 'N', 'A', 'G', 'A', 'R', ' ', ' ', ' ', 'S', 'X', 'R', ' ', '1', '8', ':', '1', '0'],
-  ['H', 'Y', 'D', 'E', 'R', 'A', 'B', 'A', 'D', ' ', ' ', 'H', 'Y', 'D', ' ', '1', '9', ':', '4', '0'],
-  ['G', 'O', 'A', ' ', 'M', 'O', 'P', 'A', ' ', ' ', ' ', 'G', 'O', 'X', ' ', '2', '1', ':', '0', '5'],
-  ['C', 'H', 'E', 'N', 'N', 'A', 'I', ' ', ' ', ' ', ' ', 'M', 'A', 'A', ' ', '2', '2', ':', '2', '0'],
-  ['K', 'O', 'C', 'H', 'I', ' ', ' ', ' ', ' ', ' ', ' ', 'C', 'O', 'K', ' ', '2', '3', ':', '4', '5']
+const COLS = 16;
+const ROWS = 14;
+const FLAP_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -:>';
+
+// 16-column Solari departure matrix rows modeled after authentic international airport FIDS boards
+const BASE_ROWS = [
+  'SAN FRANCISCO CA',
+  'RIO DE JANEIRO  ',
+  'BOSTON     DUBAI',
+  '04:26     DENVER',
+  'PANAMA      CITY',
+  'AUCKLAND  HAVANA',
+  'LIMA      CANCUN',
+  'DOHA LOS ANGELES',
+  '11:40    SEATTLE',
+  'SEATTLE      AMS',
+  'DELHI  -> MUMBAI',
+  'BENGALURU -> BOM',
+  'FRANKFURT  TOKYO',
+  'ZURICH SINGAPORE'
 ];
 
-const FLAP_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:- ';
+const LOADING_STAGES = [
+  { 
+    text: 'Accessing Global Aviation Telemetry', 
+    sub: 'Querying direct airline schedules & live radar transponders...', 
+    minPct: 10,
+    maxPct: 35 
+  },
+  { 
+    text: 'Scanning Nonstop Corridors & Fares', 
+    sub: 'Comparing Air India, IndiGo, Akasa Air, Vistara, SpiceJet...', 
+    minPct: 36,
+    maxPct: 64 
+  },
+  { 
+    text: 'Computing Airway Vectors & Altitude', 
+    sub: 'Calculating live flight corridors, climb profiles & gate assignments...', 
+    minPct: 65,
+    maxPct: 86 
+  },
+  { 
+    text: 'Compiling FIDS Terminal Schedule', 
+    sub: 'Assembling digital boarding passes & verified ADS-B telemetry...', 
+    minPct: 87,
+    maxPct: 98 
+  }
+];
 
-export default function SplitFlapLoader({ 
-  routeTitle = 'Live Airspace Radar Search',
-  routeSubtitle = 'Querying Live ADS-B Transponders & Schedules'
+export default function SplitFlapLoader({
+  routeTitle,
+  routeSubtitle
 }) {
-  const [statusIndex, setStatusIndex] = useState(0);
-  const [board, setBoard] = useState(initialMatrix);
-  const [animatingTiles, setAnimatingTiles] = useState({});
+  const { theme } = useTheme() || { theme: 'dark' };
+  const isLight = theme === 'light';
 
-  const statusMessages = [
-    'Getting all available flights...',
-    'Connecting to nearest airport radar feeds...',
-    'Scanning Indian airspace & en-route traffic...',
-    'Resolving live transponder altitudes & trajectories...',
-    'Synchronizing gate, terminal & arrival telemetry...'
-  ];
+  // Build dynamic initial board matching search query
+  const initialRows = useMemo(() => {
+    const rows = [...BASE_ROWS];
 
-  // Rotate status messages smoothly
-  useEffect(() => {
-    const statusInterval = setInterval(() => {
-      setStatusIndex(prev => (prev + 1) % statusMessages.length);
-    }, 1600);
-    return () => clearInterval(statusInterval);
-  }, [statusMessages.length]);
+    if (routeTitle && (routeTitle.includes('→') || routeTitle.includes('->') || routeTitle.toLowerCase().includes(' to '))) {
+      const parts = routeTitle.split(/[→\->]| to /i).map(s => s.trim().toUpperCase());
+      if (parts.length >= 2 && parts[0] && parts[1]) {
+        const orig = parts[0].replace(/[^A-Z0-9]/g, '').slice(0, 6);
+        const dest = parts[1].replace(/[^A-Z0-9]/g, '').slice(0, 6);
+        const customLine = `${orig.padEnd(6, ' ')} -> ${dest.padStart(6, ' ')}`;
+        rows[11] = customLine.padEnd(COLS, ' ').slice(0, COLS);
+      }
+    } else if (routeTitle) {
+      const cleanTitle = routeTitle.replace(/[^A-Z0-9 ]/gi, '').toUpperCase().slice(0, COLS);
+      rows[11] = cleanTitle.padEnd(COLS, ' ').slice(0, COLS);
+    }
 
-  // Authentic mechanical split-flap flip cycling
+    return rows.map(r => r.padEnd(COLS, ' ').slice(0, COLS));
+  }, [routeTitle]);
+
+  // Matrix cell characters and flipping state
+  const [gridChars, setGridChars] = useState(() => 
+    initialRows.map(rowStr => rowStr.split(''))
+  );
+  const [flippingCells, setFlippingCells] = useState({});
+
+  // Dynamic Telemetry & Progress States
+  const [progressPct, setProgressPct] = useState(24);
+  const [stageIndex, setStageIndex] = useState(0);
+
+  // Active continuous mechanical Solari Split-Flap animation loop
   useEffect(() => {
     const flapInterval = setInterval(() => {
       const flips = {};
-      setBoard(prevBoard => {
-        return prevBoard.map((row, rIdx) => {
-          return row.map((char, cIdx) => {
-            if (Math.random() < 0.16 && char !== ' ') {
-              const key = `${rIdx}-${cIdx}`;
-              flips[key] = true;
-              const randChar = FLAP_CHARS[Math.floor(Math.random() * FLAP_CHARS.length)];
-              return randChar;
-            }
-            return char;
-          });
-        });
+      const numFlaps = Math.floor(Math.random() * 8) + 6; // Flip 6 to 14 tiles simultaneously across the board
+
+      setGridChars(prevGrid => {
+        const nextGrid = prevGrid.map(row => [...row]);
+
+        for (let i = 0; i < numFlaps; i++) {
+          const r = Math.floor(Math.random() * ROWS);
+          const c = Math.floor(Math.random() * COLS);
+          const key = `${r}-${c}`;
+
+          // Keep target route row mostly stable for legibility, but let other rows flip actively
+          if (r === 11 && Math.random() > 0.08) continue;
+
+          flips[key] = true;
+
+          if (Math.random() > 0.4) {
+            nextGrid[r][c] = FLAP_CHARS[Math.floor(Math.random() * FLAP_CHARS.length)];
+          } else {
+            nextGrid[r][c] = initialRows[r][c];
+          }
+        }
+
+        return nextGrid;
       });
-      setAnimatingTiles(flips);
-    }, 180);
+
+      setFlippingCells(flips);
+
+      setTimeout(() => {
+        setFlippingCells({});
+      }, 220);
+    }, 120);
 
     return () => clearInterval(flapInterval);
+  }, [initialRows]);
+
+  // Settle target route back to clear text periodically
+  useEffect(() => {
+    const settleInterval = setInterval(() => {
+      setGridChars(prevGrid => {
+        const nextGrid = prevGrid.map((row, r) => {
+          if (r === 11) {
+            return initialRows[r].split('');
+          }
+          return row;
+        });
+        return nextGrid;
+      });
+    }, 900);
+
+    return () => clearInterval(settleInterval);
+  }, [initialRows]);
+
+  // Progressive live loading ticker
+  useEffect(() => {
+    const progressTimer = setInterval(() => {
+      setProgressPct(prev => {
+        const inc = Math.random() * 2.8 + 1.2;
+        const next = prev + inc;
+        return next >= 98 ? 98 : next;
+      });
+    }, 320);
+
+    return () => clearInterval(progressTimer);
   }, []);
 
+  // Update current stage message based on progress percentage
+  useEffect(() => {
+    const rounded = Math.round(progressPct);
+    const idx = LOADING_STAGES.findIndex(s => rounded >= s.minPct && rounded <= s.maxPct);
+    if (idx !== -1 && idx !== stageIndex) {
+      setStageIndex(idx);
+    }
+  }, [progressPct, stageIndex]);
+
+  const currentStage = LOADING_STAGES[stageIndex] || LOADING_STAGES[0];
+  const displayPct = Math.min(98, Math.round(progressPct));
+
   return (
-    <div className={styles.fullScreenCinema} role="status" aria-live="polite">
-      {/* Dark Ambient Vignette Background */}
-      <div className={styles.ambientVignette} />
+    <div 
+      className={`${styles.screenWrapper} ${isLight ? styles.lightTheme : styles.darkTheme}`} 
+      role="status" 
+      aria-live="polite"
+    >
+      {/* Ambient Airport Terminal Atmosphere */}
+      <div className={styles.ambientGlow} aria-hidden="true" />
+      <div className={styles.radarScanlines} aria-hidden="true" />
 
-      {/* Top Floating Header Bar */}
-      <header className={styles.topHeader}>
-        <div className={styles.topHeaderInner}>
-          <div className={styles.brandBadge}>
-            <Image
-              src="/logo.png"
-              alt="FlightDeck Logo"
-              width={32}
-              height={32}
-              className={styles.brandLogoImg}
-              priority
-            />
-          </div>
+      {/* Center Stage: Edge-to-Edge Full-Screen Split-Flap Solari Board */}
+      <main className={styles.fullScreenCenterStage}>
+        <div className={styles.fullScreenBoardCard}>
+          {/* Subtle Grid Dot Matrix Overlay */}
+          <div className={styles.gridOverlay} />
 
-          <div className={styles.routeHeaderInfo}>
-            <h1 className={styles.routeMainTitle}>{routeTitle}</h1>
-            <div className={styles.routeSubMeta}>
-              <span className={styles.radarLivePill}>
-                <span className={styles.livePulseDot} />
-                LIVE RADAR
-              </span>
-              <span className={styles.routeSubText}>{routeSubtitle}</span>
-            </div>
-          </div>
+          {/* Solari Split-Flap Matrix Grid (16 Columns x 14 Rows) */}
+          <div className={styles.matrixGrid}>
+            {gridChars.map((rowChars, r) => {
+              const isTargetRow = r === 11;
+              const isSecondaryRow = r === 12;
 
-          <div className={styles.headerRightPlaceholder} />
-        </div>
-      </header>
+              return rowChars.map((ch, c) => {
+                const key = `${r}-${c}`;
+                const isFlipping = Boolean(flippingCells[key]);
 
-      {/* Full-Screen Edge-to-Edge Mechanical Split-Flap Matrix */}
-      <main className={styles.matrixViewport}>
-        <div className={styles.matrixContainer}>
-          {board.map((row, rIdx) => (
-            <div key={rIdx} className={styles.matrixRow}>
-              {row.map((ch, cIdx) => {
-                const key = `${rIdx}-${cIdx}`;
-                const isFlipping = animatingTiles[key];
+                let cellModifier = styles.cellDefault;
+                let textModifier = styles.textDefault;
+
+                if (isTargetRow) {
+                  cellModifier = styles.cellHighlightedRoute;
+                  textModifier = styles.textHighlightedRoute;
+                } else if (isSecondaryRow && c < 10) {
+                  cellModifier = styles.cellSecondaryRoute;
+                  textModifier = styles.textSecondaryRoute;
+                }
+
                 return (
-                  <div 
-                    key={cIdx} 
-                    className={`${styles.flapTile} ${ch !== ' ' ? styles.flapTileActive : styles.flapTileSpace} ${isFlipping ? styles.flapFlipping : ''}`}
+                  <div
+                    key={key}
+                    className={`${styles.letterCell} ${cellModifier} ${isFlipping ? styles.flapFlip : ''}`}
+                    aria-hidden="true"
                   >
-                    <span className={styles.flapLetter}>{ch}</span>
+                    {/* Mechanical Horizontal Split Hinge */}
                     <div className={styles.tileSplitHinge} />
-                    <div className={styles.tileGlossReflection} />
+                    {/* Top Flap Specular Reflection */}
+                    <div className={styles.tileReflection} />
+                    
+                    <span className={`${styles.cellLetter} ${textModifier}`}>
+                      {ch === ' ' ? '' : ch}
+                    </span>
                   </div>
                 );
-              })}
-            </div>
-          ))}
+              });
+            })}
+          </div>
         </div>
       </main>
 
-      {/* Floating Bottom Drawer / Progress Card (Inspired by inspo/searchingloding1.jpeg) */}
-      <footer className={styles.bottomDrawer}>
-        <div className={styles.bottomDrawerCard}>
+      {/* Bottom Floating Telemetry & Loading Progress Dock */}
+      <footer className={styles.bottomLoaderWrapper}>
+        <div className={styles.bottomLoaderCard}>
+          {/* Progress Track with Gradient Shimmer */}
           <div className={styles.progressTrack}>
-            <div className={styles.progressGlowBar} />
+            <div 
+              className={styles.progressBar} 
+              style={{ width: `${displayPct}%` }}
+            />
+            <div className={styles.progressShimmer} />
           </div>
 
-          <div className={styles.statusRow}>
-            <svg className={styles.spinnerSvg} xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="2" x2="12" y2="6"/>
-              <line x1="12" y1="18" x2="12" y2="22"/>
-              <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
-              <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
-              <line x1="2" y1="12" x2="6" y2="12"/>
-              <line x1="18" y1="12" x2="22" y2="12"/>
-              <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/>
-              <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
-            </svg>
-            <span className={styles.statusMessage}>{statusMessages[statusIndex]}</span>
+          <div className={styles.progressDetailsRow}>
+            <div className={styles.progressLeftGroup}>
+              {/* Rotating Aeronautical Compass Spinner */}
+              <div className={styles.airplaneRadarOrb}>
+                <svg 
+                  className={styles.radarSweepSpinner} 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2.2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12"/>
+                  <path d="M12 2a10 10 0 0 1 10 10"/>
+                </svg>
+                <svg 
+                  className={styles.airplaneIcon} 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  viewBox="0 0 24 24" 
+                  fill="currentColor"
+                >
+                  <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+                </svg>
+              </div>
+
+              {/* Progress Messages */}
+              <div className={styles.statusTextCol}>
+                <p className={styles.statusMainText}>{currentStage.text}</p>
+                <p className={styles.statusSubText}>{currentStage.sub}</p>
+              </div>
+            </div>
+
+            {/* Percentage Badge */}
+            <div className={styles.percentBadge}>
+              {displayPct}%
+            </div>
           </div>
         </div>
       </footer>
